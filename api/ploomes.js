@@ -77,14 +77,13 @@ module.exports = async function handler(req, res) {
   if (!key) return res.status(500).json({ error: 'Variável PLOOMES_KEY não configurada no Vercel.' });
 
   try {
-    const sel = '$expand=OtherProperties';
 
     // Busca dados das vendas: ganhos, perdidos, e em aberto
     const [wonDeals, lostDeals, openDeals] = await Promise.all([
-      ploomesFetch(`/Deals?$filter=IsWon eq true and WonDate ge datetime'${ANO}-01-01T00:00:00'&${sel}`, key),
-      ploomesFetch(`/Deals?$filter=IsLost eq true and LostDate ge datetime'${ANO}-01-01T00:00:00'&${sel}`, key),
-      ploomesFetch(`/Deals?$filter=IsWon eq false and IsLost eq false&${sel}`, key),
-    ]);
+  ploomesFetch(`/Deals?$filter=IsWon eq true and WonDate ge datetime'${ANO}-01-01T00:00:00'`),
+  ploomesFetch(`/Deals?$filter=IsLost eq true and LostDate ge datetime'${ANO}-01-01T00:00:00'`),
+  ploomesFetch(`/Deals?$filter=IsWon eq false and IsLost eq false`),
+]);
 
     // Processamento de Deals (ganhos, perdidos, abertos)
     const sd = {}; // Dados dos vendedores
