@@ -1,22 +1,3 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "ploomes.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "env": {
-    "PLOOMES_KEY": "@ploomes-key"
-  },
-  "routes": [
-    {
-      "src": "/api/ploomes",
-      "dest": "/ploomes.js"
-    }
-  ]
+  "outputDirectory": "public"
 }
