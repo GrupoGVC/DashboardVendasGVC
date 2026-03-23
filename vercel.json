@@ -1,6 +1,3 @@
 {
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/api/ploomes", "destination": "/api/ploomes.js" }
-  ]
+  "outputDirectory": "public"
 }
