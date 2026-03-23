@@ -1,1 +1,832 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard de Vendas GVC — Ao Vivo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#04100a;--bg2:#071810;--card:#0d2818;--card2:#112e1c;--green:#22c55e;--green2:#16a34a;--green3:#15803d;--gold:#f59e0b;--gold2:#d97706;--red:#ef4444;--red2:#dc2626;--blue:#3b82f6;--text:#e2f0e8;--text2:#9ab8a4;--text3:#5a8a6a;--border:#163825;--border2:#1e4a2e;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;}
+#loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s;}
+#loading-overlay.hidden{opacity:0;pointer-events:none;}
+.loader-logo{font-family:'Bebas Neue';font-size:64px;color:var(--green);letter-spacing:6px;animation:pulse 1.5s ease-in-out infinite;}
+.loader-sub{font-family:'Barlow Condensed';font-size:16px;color:var(--text2);margin-top:8px;letter-spacing:2px;text-transform:uppercase;}
+.loader-msg{font-family:'JetBrains Mono';font-size:12px;color:var(--text3);margin-top:24px;}
+.loader-bar{width:200px;height:3px;background:rgba(34,197,94,.15);border-radius:2px;margin-top:12px;overflow:hidden;}
+.loader-fill{height:100%;background:var(--green);border-radius:2px;animation:load 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+@keyframes load{0%{width:0%}100%{width:100%}}
+.container{max-width:1600px;margin:0 auto;padding:0 16px;}
+.header{background:linear-gradient(135deg,#04100a,#071e0f,#04100a);border-bottom:1px solid var(--border2);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--green),var(--green2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:20px;color:#000;}
+.header-title{font-family:'Bebas Neue';font-size:24px;letter-spacing:2px;color:var(--green);}
+.header-sub{font-family:'Barlow Condensed';font-size:13px;color:var(--text2);}
+.header-date{font-family:'JetBrains Mono';font-size:12px;color:var(--text3);background:var(--card);padding:6px 12px;border-radius:6px;border:1px solid var(--border);}
+.btn-refresh{background:rgba(34,197,94,.1);border:1px solid var(--green3);border-radius:6px;padding:6px 14px;font-family:'Barlow Condensed';font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);cursor:pointer;transition:all .2s;}
+.btn-refresh:hover{background:rgba(34,197,94,.2);}
+.btn-refresh:disabled{opacity:.4;cursor:not-allowed;}
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;padding:0 24px;}
+.tab{font-family:'Barlow Condensed';font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:14px 18px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;}
+.tab:hover{color:var(--text2);}.tab.active{color:var(--green);border-bottom-color:var(--green);}
+.tab-content{display:none;padding:24px;}.tab-content.active{display:block;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.card-title{font-family:'Barlow Condensed';font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;}
+.card-value{font-family:'JetBrains Mono';font-size:28px;font-weight:600;color:var(--text);}
+.card-value.green{color:var(--green);}.card-value.gold{color:var(--gold);}.card-value.red{color:var(--red);}
+.card-sub{font-family:'Barlow Condensed';font-size:12px;color:var(--text3);margin-top:4px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+.grid-charts{display:grid;grid-template-columns:2fr 1fr;gap:16px;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-family:'Barlow Condensed';font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);}
+tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(34,197,94,.05);}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-family:'Barlow Condensed';font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green);}.badge-gold{background:rgba(245,158,11,.15);color:var(--gold);}.badge-red{background:rgba(239,68,68,.15);color:var(--red);}
+.pw{background:rgba(255,255,255,.05);border-radius:4px;height:6px;overflow:hidden;}
+.pb{height:100%;border-radius:4px;transition:width .6s ease;}
+.pb-green{background:linear-gradient(90deg,var(--green2),var(--green));}.pb-gold{background:linear-gradient(90deg,var(--gold2),var(--gold));}.pb-red{background:linear-gradient(90deg,var(--red2),var(--red));}
+.fc-banner{background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(245,158,11,.05));border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.fc-label{font-family:'Barlow Condensed';font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold);}
+.fc-val{font-family:'Bebas Neue';font-size:48px;color:var(--gold);}
+.sec{font-family:'Bebas Neue';font-size:20px;letter-spacing:2px;color:var(--green);margin-bottom:16px;}
+.sec-gold{color:var(--gold);}
+.seller-layout{display:grid;grid-template-columns:260px 1fr;gap:20px;}
+.seller-sidebar{display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:820px;}
+.sbtn{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;text-align:left;width:100%;}
+.sbtn:hover{border-color:var(--green3);background:var(--card2);}.sbtn.active{border-color:var(--green);background:var(--card2);}
+.hero-card{background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border2);border-radius:14px;padding:24px;margin-bottom:20px;}
+.hero-name{font-family:'Bebas Neue';font-size:36px;letter-spacing:3px;color:var(--green);}
+.hero-sub{font-family:'Barlow Condensed';font-size:14px;color:var(--text2);margin-bottom:16px;}
+.hero-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+.hkpi-l{font-family:'Barlow Condensed';font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
+.hkpi-v{font-family:'JetBrains Mono';font-size:18px;font-weight:600;}
+.prod-row{display:grid;grid-template-columns:120px 1fr 100px 100px 60px 80px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.prod-row:last-child{border-bottom:none;}
+.comp-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.comp-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+.comp-label{font-family:'Barlow Condensed';font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+.comp-score{font-family:'Bebas Neue';font-size:32px;color:var(--green);}
+.comp-stars{font-size:10px;color:var(--gold);margin:4px 0;}
+.act-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.act-col{border-radius:10px;padding:16px;}
+.act-u{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);}
+.act-s{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);}
+.act-g{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);}
+.act-title{font-family:'Barlow Condensed';font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
+.act-u .act-title{color:var(--red);}.act-s .act-title{color:var(--gold);}.act-g .act-title{color:var(--blue);}
+.act-item{margin-bottom:10px;padding:10px;border-radius:8px;background:rgba(0,0,0,.2);}
+.act-item-t{font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.act-item-b{font-size:11px;color:var(--text2);line-height:1.5;}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:16px;margin-bottom:24px;}
+.pod-bar{border-radius:8px 8px 0 0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;font-family:'Bebas Neue';font-size:24px;color:#000;}
+.pod1 .pod-bar{background:linear-gradient(180deg,#f59e0b,#d97706);height:160px;width:120px;}
+.pod2 .pod-bar{background:linear-gradient(180deg,#9ca3af,#6b7280);height:120px;width:100px;}
+.pod3 .pod-bar{background:linear-gradient(180deg,#cd7c32,#a0522d);height:90px;width:90px;}
+.pod-name{font-family:'Barlow Condensed';font-size:13px;font-weight:600;color:var(--text);margin-top:8px;}
+.pod-rev{font-family:'JetBrains Mono';font-size:12px;color:var(--green);}
+.funnel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.fcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
+.fstage{font-family:'Barlow Condensed';font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);}
+.fcount{font-family:'Bebas Neue';font-size:40px;color:var(--text);}
+.fval{font-family:'JetBrains Mono';font-size:13px;color:var(--green);}
+.trend-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;}
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.gestor-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+.gcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;}
+.gcard-name{font-family:'Barlow Condensed';font-size:16px;font-weight:700;text-transform:uppercase;color:var(--text);}
+.gstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0;}
+.gstat-l{font-family:'Barlow Condensed';font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);}
+.gstat-v{font-family:'JetBrains Mono';font-size:14px;color:var(--text);}
+.chart-wrap{position:relative;height:280px;}.chart-sm{position:relative;height:200px;}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-family:'Barlow Condensed';font-weight:600;}
+.p-neg{background:rgba(245,158,11,.15);color:var(--gold);}.p-con{background:rgba(59,130,246,.15);color:var(--blue);}
+.p-fec{background:rgba(34,197,94,.15);color:var(--green);}.p-for{background:rgba(168,85,247,.15);color:#a855f7;}
+.p-nov{background:rgba(107,114,128,.15);color:#9ca3af;}.p-reu{background:rgba(20,184,166,.15);color:#14b8a6;}
+.abox{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:12px;color:var(--text2);}
+.abox.gold{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.2);}.abox.green{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.2);}
+.plist{list-style:none;}.pitem{padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;}.pitem:last-child{border-bottom:none;}
+.pnum{font-family:'Bebas Neue';font-size:20px;color:var(--red);min-width:24px;}.pnum.gold{color:var(--gold);}
+.ptitle{font-size:13px;font-weight:600;color:var(--text);}.pbody{font-size:12px;color:var(--text2);margin-top:2px;}
+.mb16{margin-bottom:16px;}.mb24{margin-bottom:24px;}.mt16{margin-top:16px;}.mt24{margin-top:24px;}
+.num{font-family:'JetBrains Mono';}
+.error-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:20px;text-align:center;color:var(--red);font-family:'Barlow Condensed';font-size:16px;margin:24px;}
+</style>
+</head>
+<body>
 
+<!-- ── LOADING OVERLAY ── -->
+<div id="loading-overlay">
+  <div class="loader-logo">GVC</div>
+  <div class="loader-sub">Dashboard de Vendas</div>
+  <div class="loader-msg" id="loader-msg">Conectando ao Ploomes...</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<div class="header">
+  <div class="header-logo">
+    <div class="logo-icon">GVC</div>
+    <div>
+      <div class="header-title">Dashboard de Vendas — Grupo GVC</div>
+      <div class="header-sub" id="header-sub">CRM Ploomes · Carregando...</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-family:'Barlow Condensed';font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3)">🏢 Empresa</label>
+      <select id="flt-empresa" onchange="applyFilters()" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-family:'Barlow Condensed';font-size:13px;font-weight:600;cursor:pointer;outline:none">
+        <option value="ALL">Todas as Empresas</option>
+        <option value="Retec Resíduos">Retec Resíduos</option>
+        <option value="Retec Oeste">Retec Oeste</option>
+        <option value="Retec Sul">Retec Sul</option>
+        <option value="Retec Centro">Retec Centro</option>
+        <option value="Retec Norte">Retec Norte</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-family:'Barlow Condensed';font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3)">👤 Responsável</label>
+      <select id="flt-resp" onchange="applyFilters()" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-family:'Barlow Condensed';font-size:13px;font-weight:600;cursor:pointer;outline:none">
+        <option value="ALL">Todos os Consultores</option>
+      </select>
+    </div>
+    <div id="flt-badge" style="display:none;background:rgba(34,197,94,.15);border:1px solid var(--green);border-radius:6px;padding:4px 10px;font-family:'Barlow Condensed';font-size:12px;font-weight:700;color:var(--green);cursor:pointer" onclick="clearFilters()">✕ Limpar filtros</div>
+    <button class="btn-refresh" id="btn-refresh" onclick="loadDashboard()" title="Atualizar dados do Ploomes">🔄 Atualizar</button>
+    <div class="header-date" id="header-date">📅 --/--/----</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('consolidado')">📊 Consolidado</div>
+  <div class="tab" onclick="showTab('meses')">📅 Meses</div>
+  <div class="tab" onclick="showTab('ranking')">🏆 Ranking</div>
+  <div class="tab" onclick="showTab('funil')">🔻 Funil & Alertas</div>
+  <div class="tab" onclick="showTab('seller')">⭐ Seller Performance</div>
+  <div class="tab" onclick="showTab('gestor')">🎯 Gestor</div>
+  <div class="tab" onclick="showTab('origem')">🌐 Origem</div>
+  <div class="tab" onclick="showTab('historico')">📅 Histórico Anos</div>
+  <div class="tab" onclick="showTab('porte')">🏭 Porte do Cliente</div>
+</div>
+
+<!-- CONSOLIDADO -->
+<div id="tab-consolidado" class="tab-content active"><div class="container">
+  <div class="fc-banner">
+    <div><div class="fc-label">⚡ Forecast Total em Pipeline</div><div class="fc-val" id="fc-val">R$ —</div><div style="font-size:13px;color:var(--text3)" id="fc-desc">Carregando...</div></div>
+    <div style="text-align:right"><div class="fc-label">Meta Mensal do Time</div><div style="font-family:'Bebas Neue';font-size:36px;color:var(--text)" id="meta-val">R$ —</div><div style="font-size:13px;color:var(--text3)" id="meta-cov">—</div></div>
+  </div>
+  <div class="grid-4 mb24" id="kpi-consolidado"></div>
+  <div class="grid-2 mb24" id="lq-sq-cards"></div>
+  <div class="grid-charts mb24">
+    <div class="card"><div class="sec">Receita Mensal vs Meta</div><div class="chart-wrap"><canvas id="cRevMonth"></canvas></div></div>
+    <div class="card"><div class="sec">Mix de Produtos</div><div class="chart-wrap"><canvas id="cProdMix"></canvas></div></div>
+  </div>
+  <div class="grid-2 mb24">
+    <div class="card"><div class="sec">Conversão por Mês</div><div class="chart-sm"><canvas id="cConvMonth"></canvas></div></div>
+    <div class="card"><div class="sec">Top Motivos de Perda</div><div class="table-wrap"><table><thead><tr><th>Motivo</th><th>Qtd</th><th>Valor Perdido</th></tr></thead><tbody id="tblMotivos"></tbody></table></div></div>
+  </div>
+</div></div>
+
+<!-- MESES -->
+<div id="tab-meses" class="tab-content"><div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div class="sec" style="margin-bottom:0">📅 Performance Mensal 2026</div>
+    <div style="display:flex;gap:8px">
+      <button id="btn-mes-1" onclick="selectMes(1)" style="background:var(--card2);border:1px solid var(--green);border-radius:8px;padding:8px 20px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;color:var(--green);cursor:pointer;letter-spacing:1px">Janeiro</button>
+      <button id="btn-mes-2" onclick="selectMes(2)" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 20px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;color:var(--text3);cursor:pointer;letter-spacing:1px">Fevereiro</button>
+      <button id="btn-mes-3" onclick="selectMes(3)" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 20px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;color:var(--text3);cursor:pointer;letter-spacing:1px">Março <span style="font-size:11px;color:var(--gold)">●</span></button>
+    </div>
+  </div>
+  <div class="grid-4 mb24" id="kpi-mes"></div>
+  <div class="card">
+    <div class="sec" id="tbl-mes-titulo">Performance por Consultor</div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Consultor</th><th>Receita</th><th>Meta</th><th>% Ating.</th><th>Ganhas</th><th>Perdidas</th><th>Conv.</th></tr></thead><tbody id="tbl-mes"></tbody></table></div>
+  </div>
+</div></div>
+
+<!-- RANKING -->
+<div id="tab-ranking" class="tab-content"><div class="container">
+  <div class="sec mb24">🏆 Ranking Geral 2026</div>
+  <div class="podium" id="podium"></div>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Pos</th><th>Consultor</th><th>Empresa</th><th>Receita Total</th><th>Meta/Mês</th><th>Atingimento</th><th>Conversão</th><th>Ticket Médio</th><th>Status</th></tr></thead><tbody id="tbl-ranking"></tbody></table></div></div>
+</div></div>
+
+<!-- FUNIL -->
+<div id="tab-funil" class="tab-content"><div class="container">
+  <div class="sec mb24">🔻 Funil de Vendas & Alertas</div>
+  <div class="funnel-grid" id="funnel-cards"></div>
+  <div class="card mt16"><div class="sec">Benchmarks por Etapa</div><div class="table-wrap"><table><thead><tr><th>Etapa</th><th>Qtd</th><th>Valor Total</th><th>Benchmark</th><th>Ação Recomendada</th></tr></thead><tbody id="tbl-funil"></tbody></table></div></div>
+</div></div>
+
+<!-- SELLER PERFORMANCE -->
+<div id="tab-seller" class="tab-content"><div class="container">
+  <div class="sec mb24">⭐ Seller Performance — Análise Individual</div>
+  <div class="seller-layout">
+    <div class="seller-sidebar" id="seller-sidebar"></div>
+    <div id="seller-panel"><div style="display:flex;align-items:center;justify-content:center;height:300px;color:var(--text3);font-family:'Barlow Condensed';font-size:16px;">← Selecione um consultor</div></div>
+  </div>
+  <div class="sec mt24 mb16">📈 Painel de Tendências</div>
+  <div class="trend-grid" id="trend-panel"></div>
+</div></div>
+
+<!-- GESTOR -->
+<div id="tab-gestor" class="tab-content"><div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div><div class="sec" style="margin-bottom:4px;">🎯 Ações do Gestor · 2026</div><div style="color:var(--text2);font-size:13px;">Dados ao vivo do CRM Ploomes</div></div>
+    <div class="badge badge-gold" id="gestor-badge">⚠️ Carregando...</div>
+  </div>
+  <div class="grid-2 mb24">
+    <div class="card" style="border-color:rgba(239,68,68,.3)"><div class="sec" style="color:var(--red)">🔴 Prioridades Imediatas</div><ul class="plist" id="gestor-urgent"></ul></div>
+    <div class="card" style="border-color:rgba(245,158,11,.3)"><div class="sec sec-gold">🟡 Alavancas de Crescimento</div><ul class="plist" id="gestor-growth"></ul></div>
+  </div>
+  <div class="sec mb16">Cards por Consultor</div>
+  <div class="gestor-grid" id="gestor-cards"></div>
+</div></div>
+
+<!-- ORIGEM -->
+<div id="tab-origem" class="tab-content"><div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div><div class="sec" style="margin-bottom:4px;">🌐 Vendas por Origem — 2026</div><div style="color:var(--text2);font-size:13px;">Receita consolidada · Ticket médio · Conversão por canal</div></div>
+    <div class="badge badge-gold">📅 Ao vivo</div>
+  </div>
+  <div class="grid-4 mb24" id="orig-kpis"></div>
+  <div class="grid-4 mb24" id="orig-insights"></div>
+  <div class="grid-2 mb24">
+    <div class="card"><div class="sec">Receita por Origem — 2026</div><div style="position:relative;height:300px"><canvas id="cOrigAnual"></canvas></div></div>
+    <div class="card"><div class="sec">Volume de Deals por Origem</div><div style="position:relative;height:300px"><canvas id="cOrigConv"></canvas></div></div>
+  </div>
+  <div class="card mb24"><div class="sec">Ticket Médio — Anual vs Mês Atual</div><div style="position:relative;height:260px"><canvas id="cOrigTicket"></canvas></div></div>
+  <div class="card mb24">
+    <div class="sec">Desempenho por Origem — 2026</div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Origem</th><th>Receita Total</th><th>% do Total</th><th>Deals Ganhos</th><th>Conversão</th><th>Ticket Médio</th></tr></thead><tbody id="tbl-orig-anual"></tbody></table></div>
+  </div>
+  <div class="card mb24">
+    <div class="sec">Desempenho por Origem — Mês Atual</div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Origem</th><th>Receita</th><th>% do Mês</th><th>Deals Ganhos</th><th>Conv. (ano)</th><th>Ticket Médio</th></tr></thead><tbody id="tbl-orig-marco"></tbody></table></div>
+  </div>
+</div></div>
+
+<!-- HISTÓRICO ANOS -->
+<div id="tab-historico" class="tab-content"><div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <div class="sec" style="margin-bottom:4px;">📅 Comparativo Anual — Receita Mês a Mês</div>
+      <div style="font-family:'Barlow Condensed';font-size:13px;color:var(--text2)">2024 e 2025 completos · 2026 ao vivo · Fonte: CRM Ploomes</div>
+    </div>
+    <div class="badge badge-gold">⚠️ 2026 parcial — ao vivo</div>
+  </div>
+  <div class="grid-4 mb24">
+    <div class="card"><div class="card-title">Total 2024</div><div class="card-value" style="color:#9ca3af">R$ 3.260.723</div><div class="card-sub">1.042 deals ganhos</div></div>
+    <div class="card"><div class="card-title">Total 2025</div><div class="card-value" style="color:var(--blue)">R$ 3.366.445</div><div class="card-sub">1.594 deals · +3,2% vs 2024</div></div>
+    <div class="card"><div class="card-title">2026 Jan–Mar (ao vivo)</div><div class="card-value green" id="hist-2026-total">R$ —</div><div class="card-sub" id="hist-2026-sub">Carregando...</div></div>
+    <div class="card"><div class="card-title">Melhor Mês (histórico)</div><div class="card-value gold">R$ 1.049.090</div><div class="card-sub">Dezembro 2024</div></div>
+  </div>
+  <div class="card mb24">
+    <div class="sec mb16">📈 Receita Mensal — 2024 vs 2025 vs 2026</div>
+    <div style="position:relative;height:380px"><canvas id="cHistLinha"></canvas></div>
+  </div>
+  <div class="card mb24">
+    <div class="sec mb16">📋 Receita por Mês e Ano</div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Mês</th>
+        <th style="color:#9ca3af;text-align:right">2024</th>
+        <th style="color:var(--blue);text-align:right">2025</th>
+        <th style="color:var(--green);text-align:right">2026</th>
+        <th style="text-align:right">Var. 24→25</th>
+        <th style="text-align:right">Var. 25→26</th>
+      </tr></thead>
+      <tbody id="tb-hist-mensal"></tbody>
+      <tfoot>
+        <tr style="background:rgba(34,197,94,.06);font-weight:700">
+          <td>TOTAL</td>
+          <td class="num" style="text-align:right;color:#9ca3af">R$ 3.260.723</td>
+          <td class="num" style="text-align:right;color:var(--blue)">R$ 3.366.445</td>
+          <td class="num" style="text-align:right;color:var(--green)" id="hist-total-2026">R$ —</td>
+          <td class="num" style="text-align:right;color:var(--green)">+3,2%</td>
+          <td class="num" style="text-align:right;color:var(--text3)">—</td>
+        </tr>
+      </tfoot>
+    </table></div>
+    <div style="font-family:'Barlow Condensed';font-size:11px;color:var(--text3);margin-top:10px">* 2026 contém apenas os meses com dados disponíveis no CRM</div>
+  </div>
+</div></div>
+
+<!-- PORTE DO CLIENTE -->
+<div id="tab-porte" class="tab-content"><div class="container">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <div class="sec" style="margin-bottom:4px;">🏭 Porte do Cliente — LQ e SQ</div>
+      <div style="font-family:'Barlow Condensed';font-size:13px;color:var(--text2)">LQ — Grandes Geradores (ticket ≥ R$ 5.000) · SQ — Pequenos Geradores (ticket &lt; R$ 5.000) · 2026</div>
+    </div>
+    <div class="badge badge-gold">📅 Ao vivo</div>
+  </div>
+  <div class="grid-4 mb24" id="porte-kpis"></div>
+  <div class="grid-charts mb24">
+    <div class="card"><div class="sec mb16">📊 Receita LQ vs SQ por Mês</div><div style="position:relative;height:280px"><canvas id="cPorteMes"></canvas></div></div>
+    <div class="card"><div class="sec mb16">🥧 Participação na Receita 2026</div><div style="position:relative;height:280px"><canvas id="cPorteDough"></canvas></div></div>
+  </div>
+  <div class="card mb24">
+    <div class="sec mb16">📋 Resumo Mensal LQ × SQ</div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Mês</th>
+        <th style="color:var(--gold);text-align:right">LQ Receita</th><th style="color:var(--gold);text-align:right">LQ Deals</th><th style="color:var(--gold);text-align:right">LQ %</th>
+        <th style="color:var(--blue);text-align:right">SQ Receita</th><th style="color:var(--blue);text-align:right">SQ Deals</th><th style="color:var(--blue);text-align:right">SQ %</th>
+        <th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody id="porte-tabela"></tbody>
+    </table></div>
+  </div>
+</div></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+//  Estado global — preenchido pelo loadDashboard()
+// ─────────────────────────────────────────────────────────────────────
+let D = { sellers: [], G: { total_rev:0,total_won:0,total_lost:0,conv_geral:0,ticket_medio:0,fc_total:0,meta_total:335000,mrev:{1:0,2:0,3:0},mwon:{1:0,2:0,3:0},mlost:{1:0,2:0,3:0},mconv:{1:0,2:0,3:0},motivos:[],pmix:{Gerenciamento:0,RSS:0,Consultoria:0},funnel:{},fvals:{} }, mbs:{1:[],2:[],3:[]} };
+let OR = { anual: [], marco: [] };
+let MBS_ORIG = { 1:[], 2:[], 3:[] };
+
+// ─────────────────────────────────────────────────────────────────────
+//  Utilitários
+// ─────────────────────────────────────────────────────────────────────
+const f  = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+const fk = n => n >= 1000 ? 'R$ ' + (n/1000).toFixed(0) + 'K' : 'R$ ' + n;
+const pc = p => p >= 80 ? 'green' : p >= 50 ? 'gold' : 'red';
+const tb = (t, l) => { const m = {green:['badge-green','✅'],gold:['badge-gold','⚠️'],red:['badge-red','🚨']}; const [c,i] = m[t]||['badge-gold','⚠️']; return `<span class="badge ${c}">${i} ${l}</span>`; };
+const ab = a => a==='OK'?'<span class="badge badge-green">OK</span>':a==='ATENCAO'?'<span class="badge badge-gold">ATENÇÃO</span>':'<span class="badge badge-red">CRÍTICO</span>';
+const sp = s => { const m={'Negociação':'p-neg','Contrato':'p-con','Fechamento':'p-fec','Forcast':'p-for','Forecast':'p-for','Novos Leads':'p-nov','Reunião':'p-reu','Conexão':'p-reu','Agendamento':'p-reu'}; return `<span class="pill ${m[s]||'p-nov'}">${s}</span>`; };
+const st = n => { const full=Math.floor(n/2),half=n%2>=0.5?1:0; return '★'.repeat(full)+(half?'½':'')+'☆'.repeat(5-full-half); };
+const pb = (p,c='green') => `<div class="pw"><div class="pb pb-${c}" style="width:${Math.min(100,Math.max(0,p))}%"></div></div>`;
+
+// ─────────────────────────────────────────────────────────────────────
+//  Navegação
+// ─────────────────────────────────────────────────────────────────────
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab[onclick="showTab('${id}')"]`).classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='seller')  initSeller();
+  if(id==='origem')  initOrigem();
+  if(id==='historico') initHistorico();
+  if(id==='porte')   initPorte();
+  if(id==='meses')   { selectMes(window._mesAtual||1); }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  Filtros
+// ─────────────────────────────────────────────────────────────────────
+function getFilters(){ return { emp: document.getElementById('flt-empresa').value, resp: document.getElementById('flt-resp').value }; }
+
+function applyFilters(){
+  const {emp,resp}=getFilters();
+  const active = emp!=='ALL'||resp!=='ALL';
+  document.getElementById('flt-badge').style.display = active?'block':'none';
+  const sellers = D.sellers.filter(s=>(emp==='ALL'||s.empresa===emp)&&(resp==='ALL'||s.name===resp));
+  const G = calcG(sellers);
+  renderConsolidado(G, sellers);
+  if(document.getElementById('tab-meses').classList.contains('active')) selectMes(window._mesAtual||1);
+}
+
+function clearFilters(){ document.getElementById('flt-empresa').value='ALL'; document.getElementById('flt-resp').value='ALL'; applyFilters(); }
+
+function calcG(sellers){
+  const rev1=sellers.reduce((s,x)=>s+x.jan,0), rev2=sellers.reduce((s,x)=>s+x.feb,0), rev3=sellers.reduce((s,x)=>s+x.mar,0);
+  const mbsGet=(m,key)=>sellers.reduce((s,x)=>{const r=MBS_ORIG[m]?.find(r=>r.n===x.name); return s+(r?.[key]||0);},0);
+  const won1=mbsGet(1,'w'),won2=mbsGet(2,'w'),won3=mbsGet(3,'w');
+  const lost1=mbsGet(1,'l'),lost2=mbsGet(2,'l'),lost3=mbsGet(3,'l');
+  const totalRev=rev1+rev2+rev3,totalWon=won1+won2+won3,totalLost=lost1+lost2+lost3;
+  return { ...D.G, total_rev:totalRev,total_won:totalWon,total_lost:totalLost,
+    conv_geral:totalWon+totalLost>0?Math.round(totalWon/(totalWon+totalLost)*1000)/10:0,
+    ticket_medio:totalWon>0?Math.round(totalRev/totalWon):0,
+    mrev:{1:rev1,2:rev2,3:rev3},mwon:{1:won1,2:won2,3:won3},mlost:{1:lost1,2:lost2,3:lost3},
+    mconv:{1:won1+lost1>0?Math.round(won1/(won1+lost1)*1000)/10:0,2:won2+lost2>0?Math.round(won2/(won2+lost2)*1000)/10:0,3:won3+lost3>0?Math.round(won3/(won3+lost3)*1000)/10:0}
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA CONSOLIDADO
+// ─────────────────────────────────────────────────────────────────────
+let cCharts = {};
+function renderConsolidado(g, sellers){
+  // FC banner
+  const fcOp = Object.entries(g.funnel||{}).filter(([s])=>['forcast','forecast'].includes(s.toLowerCase()));
+  const fcQty = fcOp.reduce((s,[,c])=>s+c,0);
+  document.getElementById('fc-val').textContent  = f(g.fc_total);
+  document.getElementById('fc-desc').textContent = `${fcQty} oportunidades em Forecast · Prontas para fechamento`;
+  document.getElementById('meta-val').textContent = f(g.meta_total);
+  document.getElementById('meta-cov').textContent = `${Math.round(g.fc_total/g.meta_total*100)}% coberto pelo forecast atual`;
+
+  // KPIs
+  const pct3 = Math.round(g.mrev[3]/g.meta_total*100);
+  document.getElementById('kpi-consolidado').innerHTML =
+    `<div class="card"><div class="card-title">Valor de Vendas 2026</div><div class="card-value green">${f(g.total_rev)}</div><div class="card-sub">3 meses · ${g.total_won} deals ganhos</div></div>`+
+    `<div class="card"><div class="card-title">Venda Março · % da Meta</div><div class="card-value gold">${f(g.mrev[3])}</div><div class="card-sub"><span style="font-family:'JetBrains Mono';font-size:1.1em;font-weight:700;color:var(--gold)">${pct3}%</span> da meta de ${f(g.meta_total)}</div></div>`+
+    `<div class="card"><div class="card-title">Conversão Geral</div><div class="card-value gold">${g.conv_geral}%</div><div class="card-sub">${g.total_won} ganhas · ${g.total_lost} perdidas</div></div>`+
+    `<div class="card"><div class="card-title">Ticket Médio</div><div class="card-value">${f(g.ticket_medio)}</div><div class="card-sub">Por deal fechado</div></div>`;
+
+  // LQ/SQ cards
+  const wonDeals = sellers.reduce((acc,s)=>acc.concat(s.deals||[]),[]);
+  const lqRev = sellers.reduce((s,x)=>s+x.jan+x.feb+x.mar,0); // simplificado
+  document.getElementById('lq-sq-cards').innerHTML =
+    `<div class="card" style="border-color:rgba(245,158,11,.3);background:linear-gradient(135deg,var(--card),rgba(245,158,11,.04))">
+       <div class="card-title">🏢 LQ — Grandes Geradores (≥ R$ 5.000)</div>
+       <div class="card-value gold">${f(g.total_rev)}</div>
+       <div class="card-sub" style="margin-top:8px">Dados ao vivo do CRM · calculado por mês</div>
+     </div>
+     <div class="card" style="border-color:rgba(59,130,246,.3);background:linear-gradient(135deg,var(--card),rgba(59,130,246,.04))">
+       <div class="card-title">💡 Dados de Origem Atualizado</div>
+       <div class="card-value" style="color:var(--blue);font-size:20px">${OR.anual.length} origens mapeadas</div>
+       <div class="card-sub" style="margin-top:8px">${OR.anual.reduce((s,o)=>s+o.q,0)} deals ganhos via ${OR.anual.length} canais em 2026</div>
+     </div>`;
+
+  // Motivos de perda
+  const tb2 = document.getElementById('tblMotivos');
+  tb2.innerHTML = '';
+  (g.motivos||[]).forEach(([m,c,v])=>{ tb2.innerHTML += `<tr><td>${m}</td><td class="num">${c}</td><td class="num">${f(v)}</td></tr>`; });
+
+  // Charts
+  if(cCharts.rev) { cCharts.rev.destroy(); cCharts.conv.destroy(); cCharts.mix.destroy(); }
+  cCharts.rev = new Chart(document.getElementById('cRevMonth'),{type:'bar',data:{labels:['Janeiro','Fevereiro','Março'],datasets:[{label:'Receita',data:[g.mrev[1],g.mrev[2],g.mrev[3]],backgroundColor:['rgba(34,197,94,.7)','rgba(34,197,94,.7)','rgba(34,197,94,.4)'],borderRadius:6},{label:'Meta',data:[g.meta_total,g.meta_total,g.meta_total],type:'line',borderColor:'rgba(245,158,11,.8)',borderDash:[6,3],borderWidth:2,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9ab8a4',font:{family:'Barlow Condensed'}}}},scales:{x:{ticks:{color:'#9ab8a4'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#9ab8a4',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,.05)'}}}}});
+  cCharts.mix = new Chart(document.getElementById('cProdMix'),{type:'doughnut',data:{labels:['Gerenciamento','RSS','Consultoria'],datasets:[{data:[g.pmix.Gerenciamento||1,g.pmix.RSS||1,g.pmix.Consultoria||1],backgroundColor:['rgba(34,197,94,.8)','rgba(245,158,11,.8)','rgba(59,130,246,.8)'],borderColor:'#04100a',borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#9ab8a4',font:{family:'Barlow Condensed'},padding:16}}}}});
+  cCharts.conv = new Chart(document.getElementById('cConvMonth'),{type:'line',data:{labels:['Janeiro','Fevereiro','Março'],datasets:[{label:'Conversão %',data:[g.mconv[1],g.mconv[2],g.mconv[3]],borderColor:'rgba(34,197,94,1)',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:0.3,pointRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9ab8a4'}}},scales:{x:{ticks:{color:'#9ab8a4'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#9ab8a4',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.05)'},min:0,max:100}}}});
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA MESES
+// ─────────────────────────────────────────────────────────────────────
+window._mesAtual = 1;
+function selectMes(m){
+  window._mesAtual=m;
+  const {emp,resp}=getFilters();
+  [1,2,3].forEach(i=>{
+    const btn=document.getElementById('btn-mes-'+i);
+    if(!btn)return;
+    if(i===m){btn.style.background='var(--card2)';btn.style.borderColor='var(--green)';btn.style.color='var(--green)';}
+    else{btn.style.background='var(--card)';btn.style.borderColor='var(--border)';btn.style.color='var(--text3)';}
+  });
+  const nomes=['','Janeiro','Fevereiro','Março'];
+  const g=D.G; const rev=g.mrev[m],won=g.mwon[m],lost=g.mlost[m],conv=g.mconv[m];
+  const pct=g.meta_total>0?Math.round(rev/g.meta_total*100):0;
+  const ticket=won>0?Math.round(rev/won):0;
+  const suffix=m===3?' <span style="font-size:12px;color:var(--gold)">· em andamento</span>':'';
+  document.getElementById('tbl-mes-titulo').innerHTML=`Performance por Consultor — ${nomes[m]}${suffix}`;
+  document.getElementById('kpi-mes').innerHTML=
+    `<div class="card"><div class="card-title">Receita ${nomes[m]}</div><div class="card-value green">${f(rev)}</div><div class="card-sub">${pct}% da meta</div></div>`+
+    `<div class="card"><div class="card-title">Deals Ganhos</div><div class="card-value">${won}</div></div>`+
+    `<div class="card"><div class="card-title">Deals Perdidos</div><div class="card-value red">${lost}</div></div>`+
+    `<div class="card"><div class="card-title">Conversão</div><div class="card-value gold">${conv}%</div><div class="card-sub">Ticket médio ${f(ticket)}</div></div>`;
+  let rows=MBS_ORIG[m]||[];
+  if(emp!=='ALL') rows=rows.filter(r=>r.emp===emp);
+  if(resp!=='ALL') rows=rows.filter(r=>r.n===resp);
+  rows=[...rows].sort((a,b)=>b.r-a.r);
+  const tbl=document.getElementById('tbl-mes');
+  tbl.innerHTML='';
+  if(!rows.length){tbl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Nenhum resultado.</td></tr>';return;}
+  rows.forEach((r,i)=>{const col=pc(r.p);tbl.innerHTML+=`<tr><td><strong>${i+1}</strong></td><td><strong>${r.n}</strong>${r.emp?`<br><span style="font-size:11px;color:var(--text3)">${r.emp}</span>`:''}</td><td class="num">${f(r.r)}</td><td class="num">${f(r.m)}</td><td><span class="badge badge-${col}">${r.p}%</span></td><td>${r.w}</td><td>${r.l}</td><td class="num">${r.c}%</td></tr>`;});
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA RANKING
+// ─────────────────────────────────────────────────────────────────────
+function initRanking(){
+  const sellers=[...D.sellers].sort((a,b)=>b.total_rev-a.total_rev);
+  const top3=sellers.slice(0,3);
+  const pod=document.getElementById('podium');
+  pod.innerHTML='';
+  [1,0,2].forEach(i=>{if(!top3[i])return;const s=top3[i];pod.innerHTML+=`<div class="pod${i+1}"><div class="pod-bar">${['🥇','🥈','🥉'][i]}</div><div class="pod-name">${s.name.split(' ')[0]}</div><div class="pod-rev">${f(s.total_rev)}</div></div>`;});
+  const t=document.getElementById('tbl-ranking');t.innerHTML='';
+  sellers.forEach((s,i)=>{const pct2=Math.round(s.total_rev/(s.mar_meta.total*3)*100),col=pc(pct2);t.innerHTML+=`<tr><td><strong>${i+1}</strong></td><td><strong>${s.name}</strong></td><td style="color:var(--text3)">${s.empresa}</td><td class="num" style="color:var(--green)">${f(s.total_rev)}</td><td class="num">${f(s.mar_meta.total)}</td><td><span class="badge badge-${col}">${pct2}%</span></td><td class="num">${s.conv}%</td><td class="num">${f(s.ticket)}</td><td>${tb(s.trend,s.tl)}</td></tr>`;});
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA FUNIL
+// ─────────────────────────────────────────────────────────────────────
+function initFunil(){
+  const g=D.G;
+  const bench={'Novos Leads':3,'Conexão':7,'Negociação':20,'Forcast':15,'Forecast':15,'Contrato':15,'Fechamento':3,'Reunião':5,'Agendamento':5};
+  const acts={'Novos Leads':'Contato em até 24h','Conexão':'Agendar reunião em até 3 dias','Negociação':'Follow-up diário até decisão','Forcast':'Fechar contrato esta semana','Forecast':'Fechar contrato esta semana','Contrato':'Assinar e faturar','Fechamento':'Validar e contabilizar','Reunião':'Enviar proposta imediatamente','Agendamento':'Confirmar e preparar pauta'};
+  const fc=document.getElementById('funnel-cards'),ft=document.getElementById('tbl-funil');
+  fc.innerHTML='';ft.innerHTML='';
+  Object.entries(g.funnel||{}).sort((a,b)=>b[1]-a[1]).forEach(([stage,cnt])=>{
+    if(!cnt)return;
+    const val=g.fvals[stage]||0;
+    fc.innerHTML+=`<div class="fcard"><div class="fstage">${stage}</div><div class="fcount">${cnt}</div><div class="fval">${fk(val)}</div></div>`;
+    ft.innerHTML+=`<tr><td>${sp(stage)}</td><td class="num">${cnt}</td><td class="num">${f(val)}</td><td><span class="badge badge-green">${bench[stage]||15} dias</span></td><td style="color:var(--text2)">${acts[stage]||'Avançar no funil'}</td></tr>`;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA SELLER PERFORMANCE
+// ─────────────────────────────────────────────────────────────────────
+let sInit=false, sCharts={};
+function initSeller(){
+  if(sInit)return; sInit=true;
+  const sb=document.getElementById('seller-sidebar'); sb.innerHTML='';
+  D.sellers.forEach(s=>{
+    const col=s.trend==='gold'?'gold':s.trend==='green'?'green':'red';
+    sb.innerHTML+=`<button class="sbtn" onclick="showSeller('${s.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-family:'Barlow Condensed';font-size:14px;font-weight:600;text-transform:uppercase;color:var(--text)">${s.name.split(' ')[0]}<br><span style="font-size:11px;color:var(--text3)">${s.name.split(' ').slice(1).join(' ')}</span></div>
+        <div style="font-family:'JetBrains Mono';font-size:18px;font-weight:600;color:var(--${col})">${s.pct}%</div>
+      </div>
+      ${pb(s.pct,pc(s.pct))}
+      <div style="display:flex;gap:8px;margin-top:8px;font-family:'Barlow Condensed';font-size:11px;color:var(--text3)">
+        <span>Conv:<strong style="color:var(--text)"> ${s.conv}%</strong></span>
+        <span>Ciclo:<strong style="color:var(--text)"> ${s.cycle}d</strong></span>
+        <span>FC:<strong style="color:var(--gold)"> ${fk(s.forecast)}</strong></span>
+      </div>
+    </button>`;
+  });
+  const tp=document.getElementById('trend-panel'); tp.innerHTML='';
+  D.sellers.forEach(s=>{
+    const col=s.trend==='gold'?'gold':s.trend==='green'?'green':'red';
+    tp.innerHTML+=`<div class="tcard"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><div style="font-family:'Barlow Condensed';font-size:13px;font-weight:600">${s.name.split(' ')[0]}</div>${tb(s.trend,'')}</div><div style="font-family:'JetBrains Mono';font-size:22px;color:var(--${col})">${s.pct}%</div><div style="font-size:11px;color:var(--text3);margin:4px 0">${s.tl}</div>${pb(s.pct,pc(s.pct))}</div>`;
+  });
+  if(D.sellers.length) showSeller(D.sellers[0].id);
+}
+
+function showSeller(id){
+  const s=D.sellers.find(x=>x.id===id); if(!s)return;
+  document.querySelectorAll('.sbtn').forEach((b,i)=>{b.classList.remove('active');if(D.sellers[i]&&D.sellers[i].id===id)b.classList.add('active');});
+  const col=s.trend==='gold'?'gold':s.trend==='green'?'green':'red';
+  const acts=genActs(s);
+  document.getElementById('seller-panel').innerHTML=`
+    <div class="hero-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="hero-name">${s.name}</div><div class="hero-sub">${s.empresa} · Consultor GVC</div></div>${tb(s.trend,s.tl)}</div>
+      <div class="hero-kpis">
+        <div><div class="hkpi-l">Receita 2026</div><div class="hkpi-v" style="color:var(--green)">${f(s.total_rev)}</div></div>
+        <div><div class="hkpi-l">Meta/Mês</div><div class="hkpi-v">${f(s.mar_meta.total)}</div></div>
+        <div><div class="hkpi-l">Mês Atual</div><div class="hkpi-v" style="color:var(--${col})">${f(s.mar_act.total)}</div></div>
+        <div><div class="hkpi-l">Atingimento</div><div class="hkpi-v" style="color:var(--${col})">${s.pct}%</div></div>
+        <div><div class="hkpi-l">Forecast</div><div class="hkpi-v" style="color:var(--gold)">${f(s.forecast)}</div></div>
+        <div><div class="hkpi-l">Em Aberto</div><div class="hkpi-v">${s.open}</div></div>
+      </div>
+    </div>
+    <div class="card mb16"><div class="sec">Evolução Individual de Receita</div><div class="chart-wrap"><canvas id="sc-${s.id}"></canvas></div></div>
+    <div class="card mb16"><div class="sec">Meta por Produto — Mês Atual</div>${buildProd(s)}</div>
+    <div class="card mb16"><div class="sec">Perfil de Competências</div><div class="comp-grid">${buildComp(s)}</div></div>
+    <div class="card mb16"><div class="sec">Alertas & Insights</div>
+      <div class="grid-4 mb16">
+        <div class="card"><div class="card-title">Conversão</div><div class="card-value ${s.conv>=60?'green':s.conv>=40?'gold':'red'}">${s.conv}%</div></div>
+        <div class="card"><div class="card-title">Ciclo Médio</div><div class="card-value ${s.cycle<=25?'green':s.cycle<=35?'gold':'red'}">${s.cycle}d</div></div>
+        <div class="card"><div class="card-title">Acurácia</div><div class="card-value">${Math.min(95,Math.round(70+s.conv*0.25))}%</div></div>
+        <div class="card"><div class="card-title">Ticket Médio</div><div class="card-value">${f(s.ticket)}</div></div>
+      </div>${buildAlerts(s)}</div>
+    <div class="card mb16"><div class="sec">Top Leads em Aberto</div>
+      <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Etapa</th><th>Valor</th><th>Dias</th><th>Produto</th><th>Alerta</th></tr></thead><tbody>${(s.deals||[]).map(([c,e,v,d,p,a])=>`<tr><td><strong>${c}</strong></td><td>${sp(e)}</td><td class="num">${f(v)}</td><td class="num" style="color:${d>20?'var(--red)':'var(--text2)'}">${d}d</td><td style="color:var(--text3);font-size:12px">${p}</td><td>${ab(a)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+    <div class="card mb16"><div class="sec">Plano de Ação — ${s.name.split(' ')[0]}</div>
+      <div class="act-grid">
+        <div class="act-col act-u"><div class="act-title">🔴 Alta Urgência</div>${acts.u.map(a=>`<div class="act-item"><div class="act-item-t">${a[0]}</div><div class="act-item-b">${a[1]}</div></div>`).join('')}</div>
+        <div class="act-col act-s"><div class="act-title">🟡 Estratégico</div>${acts.s.map(a=>`<div class="act-item"><div class="act-item-t">${a[0]}</div><div class="act-item-b">${a[1]}</div></div>`).join('')}</div>
+        <div class="act-col act-g"><div class="act-title">🔵 Crescimento</div>${acts.g.map(a=>`<div class="act-item"><div class="act-item-t">${a[0]}</div><div class="act-item-b">${a[1]}</div></div>`).join('')}</div>
+      </div>
+    </div>`;
+  setTimeout(()=>{
+    const ctx=document.getElementById('sc-'+s.id);if(!ctx)return;
+    if(sCharts[s.id])sCharts[s.id].destroy();
+    sCharts[s.id]=new Chart(ctx,{type:'line',data:{labels:['Janeiro','Fevereiro','Março'],datasets:[{label:'Receita Real',data:[s.jan,s.feb,s.mar],borderColor:'rgba(34,197,94,1)',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:0.3,pointRadius:6},{label:'Meta',data:[s.mar_meta.total,s.mar_meta.total,s.mar_meta.total],borderColor:'rgba(245,158,11,.7)',borderDash:[6,3],borderWidth:2,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9ab8a4',font:{family:'Barlow Condensed'}}}},scales:{x:{ticks:{color:'#9ab8a4'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#9ab8a4',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,.05)'}}}}});
+  },50);
+}
+
+function buildProd(s){
+  return[['RSS',s.mar_act.rss,s.mar_meta.RSS],['Gerenciamento',s.mar_act.ger,s.mar_meta.Gerenciamento],['Consultoria',s.mar_act.con,s.mar_meta.Consultoria],['TOTAL',s.mar_act.total,s.mar_meta.total]]
+    .filter(([,a,m])=>!(m===0&&a===0))
+    .map(([label,act,meta])=>{
+      const pct2=meta>0?Math.min(150,Math.round(act/meta*100)):0,diff=act-meta,col=pct2>=80?'green':pct2>=50?'gold':'red',isT=label==='TOTAL';
+      return`<div class="prod-row" style="${isT?'background:rgba(34,197,94,.05);border-radius:6px;padding:10px;margin-top:8px':''}"><div style="font-family:'Barlow Condensed';font-size:13px;font-weight:600;color:var(--text2)">${label}</div><div>${pb(pct2,col)}</div><div class="num" style="color:var(--green);font-size:13px">${f(act)}</div><div class="num" style="color:var(--text3);font-size:12px">${f(meta)}</div><div class="num" style="color:var(--${col});font-size:13px">${pct2}%</div><div class="num" style="color:var(--${diff>=0?'green':'red'});font-size:12px">${diff>=0?'+':''}${f(diff)}</div></div>`;
+    }).join('');
+}
+
+function buildComp(s){
+  return[['Conversão',s.comp.conv],['Ticket Médio',s.comp.ticket],['Volume',s.comp.volume],['Consistência',s.comp.consist],['Gestão Funil',s.comp.funil]]
+    .map(([l,score])=>`<div class="comp-card"><div class="comp-label">${l}</div><div class="comp-score">${score.toFixed(1)}</div><div class="comp-stars">${st(score)}</div>${pb(score*10,'green')}</div>`).join('');
+}
+
+function buildAlerts(s){
+  let h='';
+  if(s.conv<50)h+=`<div class="abox">⚠️ <strong>Conversão crítica:</strong> ${s.conv}% abaixo do benchmark de 60%.</div>`;
+  else if(s.conv>=70)h+=`<div class="abox green">✅ <strong>Conversão excelente:</strong> ${s.conv}%.</div>`;
+  if(s.cycle>35)h+=`<div class="abox">⏱️ <strong>Ciclo longo:</strong> ${s.cycle} dias.</div>`;
+  if(s.forecast>0)h+=`<div class="abox gold">💰 <strong>Forecast ativo:</strong> ${f(s.forecast)} prontos para fechamento.</div>`;
+  if(s.pct<10&&s.pct>=0)h+=`<div class="abox">🚨 <strong>Mês crítico:</strong> ${s.pct}% da meta.</div>`;
+  if(!h)h=`<div class="abox green">✅ Sem alertas críticos. Manter ritmo.</div>`;
+  return h;
+}
+
+function genActs(s){
+  const u=[],str=[],g2=[];
+  if(s.conv<25)u.push([`Intervenção imediata — conversão ${s.conv}%`,`Taxa crítica com ${s.total_lost} perdas. Gestor deve acompanhar reuniões ao vivo.`]);
+  else if(s.conv<50)u.push([`Revisar script — conversão ${s.conv}%`,`Abaixo do benchmark de 60%. Analisar motivos de perda e ajustar fechamento.`]);
+  if(s.pct<10)u.push([`Ativar pipeline — ${s.pct}% da meta`,`Priorizar Forcast, Contrato e Fechamento imediatamente.`]);
+  if(s.forecast>0)u.push([`Fechar Forecast ${f(s.forecast)}`,`Oportunidades em Forcast prontas. Acompanhar cada negociação até o fechamento.`]);
+  const crit=(s.deals||[]).filter(d=>d[5]==='CRITICO'&&d[2]>5000);
+  if(crit.length){const t=crit[0];u.push([`${t[0].substring(0,30)} — ${f(t[2])}`,`Deal crítico em ${t[1]} há ${t[3]} dias. Acionar com urgência.`]);}
+  const vs=[s.jan,s.feb,s.mar],mx=Math.max(...vs),mn=Math.min(...vs);
+  if(mx>0&&(mx-mn)/mx>0.6)str.push(['Estabilizar receita — volatilidade alta',`Variação de ${Math.round((mx-mn)/mx*100)}% entre meses. Regularizar atividades diárias.`]);
+  if(s.cycle>35)str.push([`Reduzir ciclo — ${s.cycle} dias`,`Acima do benchmark. Implementar régua de follow-up automático.`]);
+  if(s.conv>=75)g2.push(['Benchmark — disseminar metodologia',`Com ${s.conv}% de conversão, documentar e compartilhar com o time.`]);
+  g2.push(['Aumentar volume de prospecção',`Meta: 5+ prospecções/dia. Com ${s.conv}% de conversão, cada lead tem alto potencial.`]);
+  g2.push(['Revisão de meta para próximo mês',`Melhor mês: ${f(Math.max(s.jan,s.feb,s.mar))}. Usar como base de projeção.`]);
+  if(!u.length)u.push(['Manter ritmo de prospecção','Performance sólida. Manter volume para pipeline sustentável.']);
+  if(!str.length)str.push(['Otimizar mix de produtos','Avaliar upsell nos produtos com menor penetração.']);
+  return{u:u.slice(0,4),s:str.slice(0,3),g:g2.slice(0,3)};
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA GESTOR
+// ─────────────────────────────────────────────────────────────────────
+function initGestor(){
+  // Urgentes: sellers com pior performance
+  const byPct = [...D.sellers].sort((a,b)=>a.pct-b.pct);
+  const ul = document.getElementById('gestor-urgent'); ul.innerHTML='';
+  byPct.slice(0,5).forEach((s,i)=>{
+    const acts=genActs(s);
+    if(acts.u.length) ul.innerHTML+=`<li class="pitem"><div class="pnum">${i+1}</div><div><div class="ptitle">${s.name} — ${s.pct}% da meta · ${s.empresa}</div><div class="pbody">${acts.u[0][1]}</div></div></li>`;
+  });
+  // Crescimento: top performers
+  const byTop=[...D.sellers].sort((a,b)=>b.pct-a.pct);
+  const gl=document.getElementById('gestor-growth'); gl.innerHTML='';
+  byTop.slice(0,5).forEach((s,i)=>{
+    gl.innerHTML+=`<li class="pitem"><div class="pnum gold">${i+1}</div><div><div class="ptitle">${s.name} — ${s.pct}% · ${f(s.mar_act.total)} em Março</div><div class="pbody">Forecast: ${f(s.forecast)} · Conversão: ${s.conv}% · ${s.open} deals abertos</div></div></li>`;
+  });
+  // Cards individuais
+  const gc=document.getElementById('gestor-cards'); gc.innerHTML='';
+  D.sellers.forEach(s=>{
+    const col=s.trend==='gold'?'gold':s.trend==='green'?'green':'red';
+    const acts=genActs(s);
+    gc.innerHTML+=`<div class="gcard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="gcard-name">${s.name}</div><span class="badge badge-${pc(s.pct)}">${s.pct}%</span></div>
+      <div style="font-family:'Barlow Condensed';font-size:12px;color:var(--text3);margin-bottom:8px">Meta: ${f(s.mar_meta.total)} · ${s.empresa}</div>
+      <div class="gstats">
+        <div><div class="gstat-l">Conversão</div><div class="gstat-v" style="color:${s.conv>=60?'var(--green)':s.conv>=40?'var(--gold)':'var(--red)'}">${s.conv}%</div></div>
+        <div><div class="gstat-l">Forecast</div><div class="gstat-v" style="color:var(--gold)">${f(s.forecast)}</div></div>
+        <div><div class="gstat-l">Atual</div><div class="gstat-v" style="color:var(--${col})">${f(s.mar_act.total)}</div></div>
+        <div><div class="gstat-l">Perdas</div><div class="gstat-v" style="color:var(--red)">${s.total_lost}</div></div>
+      </div>${pb(s.pct,pc(s.pct))}
+      <div style="margin-top:12px;font-size:11px;">
+        ${acts.u.slice(0,2).map(a=>`<div style="padding:5px 0;border-bottom:1px solid var(--border);color:var(--red)">🔴 ${a[0].substring(0,80)}</div>`).join('')}
+        ${acts.s.slice(0,1).map(a=>`<div style="padding:5px 0;border-bottom:1px solid var(--border);color:var(--gold)">🟡 ${a[0].substring(0,80)}</div>`).join('')}
+        ${acts.g.slice(0,1).map(a=>`<div style="padding:5px 0;color:var(--blue)">🔵 ${a[0].substring(0,80)}</div>`).join('')}
+      </div>
+    </div>`;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA ORIGEM
+// ─────────────────────────────────────────────────────────────────────
+let oInit=false, oCharts={};
+function initOrigem(){
+  if(oInit)return; oInit=true;
+  if(!OR.anual.length){ document.getElementById('tab-origem').innerHTML+='<div class="error-box">Dados de origem não disponíveis. Verifique o campo de Origem no Ploomes.</div>'; return; }
+  const tA=OR.anual.reduce((s,r)=>s+r.r,0), qA=OR.anual.reduce((s,r)=>s+r.q,0);
+  const tM=OR.marco.reduce((s,r)=>s+r.r,0), qM=OR.marco.reduce((s,r)=>s+r.q,0);
+  document.getElementById('orig-kpis').innerHTML=
+    `<div class="card"><div class="card-title">Receita Total 2026</div><div class="card-value green">${f(tA)}</div><div class="card-sub">${qA} deals · ${OR.anual.length} origens</div></div>`+
+    `<div class="card"><div class="card-title">Ticket Médio 2026</div><div class="card-value">${f(qA>0?Math.round(tA/qA):0)}</div><div class="card-sub">Por deal fechado</div></div>`+
+    `<div class="card"><div class="card-title">Receita Mês Atual</div><div class="card-value gold">${f(tM)}</div><div class="card-sub">${qM} deals</div></div>`+
+    `<div class="card"><div class="card-title">Ticket Médio Mês</div><div class="card-value">${f(qM>0?Math.round(tM/qM):0)}</div><div class="card-sub">Por deal fechado</div></div>`;
+  const bT=[...OR.anual].sort((a,b)=>b.t-a.t)[0]||{};
+  const bC=[...OR.anual].sort((a,b)=>b.c-a.c)[0]||{};
+  const bV=[...OR.anual].sort((a,b)=>b.r-a.r)[0]||{};
+  const wT=[...OR.anual].filter(r=>r.q>=5).sort((a,b)=>a.t-b.t)[0]||{};
+  document.getElementById('orig-insights').innerHTML=
+    `<div class="card" style="border-color:rgba(245,158,11,.3)"><div class="card-title">🏆 Maior Ticket</div><div class="card-value gold" style="font-size:22px">${bT.o||'—'}</div><div style="font-family:'JetBrains Mono';font-size:24px;color:var(--gold)">${f(bT.t||0)}</div></div>`+
+    `<div class="card" style="border-color:rgba(34,197,94,.3)"><div class="card-title">✅ Melhor Conversão</div><div class="card-value green" style="font-size:22px">${bC.o||'—'}</div><div style="font-family:'JetBrains Mono';font-size:24px;color:var(--green)">${bC.c||0}%</div></div>`+
+    `<div class="card" style="border-color:rgba(34,197,94,.3)"><div class="card-title">💰 Maior Receita</div><div class="card-value green" style="font-size:22px">${bV.o||'—'}</div><div style="font-family:'JetBrains Mono';font-size:24px;color:var(--green)">${f(bV.r||0)}</div></div>`+
+    `<div class="card" style="border-color:rgba(239,68,68,.3)"><div class="card-title">⚠️ Menor Ticket (vol.)</div><div class="card-value red" style="font-size:22px">${wT.o||'—'}</div><div style="font-family:'JetBrains Mono';font-size:24px;color:var(--red)">${f(wT.t||0)}</div></div>`;
+  if(oCharts.a)oCharts.a.destroy();
+  if(oCharts.c)oCharts.c.destroy();
+  if(oCharts.t)oCharts.t.destroy();
+  oCharts.a=new Chart(document.getElementById('cOrigAnual'),{type:'bar',data:{labels:OR.anual.map(r=>r.o),datasets:[{label:'Receita 2026',data:OR.anual.map(r=>r.r),backgroundColor:'rgba(34,197,94,.7)',borderRadius:6}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9ab8a4',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#e2f0e8',font:{family:'Barlow Condensed',size:13}},grid:{display:false}}}}});
+  oCharts.c=new Chart(document.getElementById('cOrigConv'),{type:'doughnut',data:{labels:OR.anual.map(r=>r.o+' ('+r.c+'%)'),datasets:[{data:OR.anual.map(r=>r.q),backgroundColor:['rgba(34,197,94,.8)','rgba(59,130,246,.8)','rgba(245,158,11,.8)','rgba(168,85,247,.8)','rgba(20,184,166,.8)','rgba(239,68,68,.8)','rgba(107,114,128,.6)'],borderColor:'#04100a',borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#9ab8a4',font:{family:'Barlow Condensed',size:11},padding:10}}}}});
+  const alls=OR.anual.map(r=>r.o);
+  oCharts.t=new Chart(document.getElementById('cOrigTicket'),{type:'bar',data:{labels:alls,datasets:[{label:'Ticket 2026',data:OR.anual.map(r=>r.t),backgroundColor:'rgba(34,197,94,.7)',borderRadius:4},{label:'Ticket Mês',data:alls.map(o=>{const m=OR.marco.find(r=>r.o===o);return m?m.t:0;}),backgroundColor:'rgba(245,158,11,.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9ab8a4'}}},scales:{x:{ticks:{color:'#9ab8a4'},grid:{display:false}},y:{ticks:{color:'#9ab8a4',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,.05)'}}}}});
+  const tA2=OR.anual.reduce((s,r)=>s+r.r,0);
+  const tba=document.getElementById('tbl-orig-anual'); tba.innerHTML='';
+  OR.anual.forEach((r,i)=>{const pct2=tA2>0?Math.round(r.r/tA2*100):0,col=r.c>=70?'green':r.c>=50?'gold':'red';tba.innerHTML+=`<tr><td><strong>${i+1}</strong></td><td><strong>${r.o}</strong></td><td class="num" style="color:var(--green)">${f(r.r)}</td><td>${pb(pct2,'green')}<span class="num" style="font-size:12px;color:var(--text3)">${pct2}%</span></td><td class="num">${r.q}</td><td><span class="badge badge-${col}">${r.c}%</span></td><td class="num" style="color:var(--gold)">${f(r.t)}</td></tr>`;});
+  const tM2=OR.marco.reduce((s,r)=>s+r.r,0);
+  const tbm=document.getElementById('tbl-orig-marco'); tbm.innerHTML='';
+  OR.marco.forEach((r,i)=>{const pct2=tM2>0?Math.round(r.r/tM2*100):0,am=OR.anual.find(a=>a.o===r.o),cb=am?`<span class="badge badge-${am.c>=70?'green':am.c>=50?'gold':'red'}">${am.c}%</span>`:'—';tbm.innerHTML+=`<tr><td><strong>${i+1}</strong></td><td><strong>${r.o}</strong></td><td class="num" style="color:var(--green)">${f(r.r)}</td><td>${pb(pct2,'gold')}<span class="num" style="font-size:12px;color:var(--text3)">${pct2}%</span></td><td class="num">${r.q}</td><td>${cb}</td><td class="num" style="color:var(--gold)">${f(r.t)}</td></tr>`;});
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA HISTÓRICO
+// ─────────────────────────────────────────────────────────────────────
+let hInit=false;
+function initHistorico(){
+  if(hInit)return; hInit=true;
+  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const d24=[220053,131542,79952,95538,143341,75427,157144,391906,151670,248898,516162,1049090];
+  const d25=[238208,363018,206782,190421,245743,116329,197732,461266,239105,580994,228119,298728];
+  const d26=[D.G.mrev[1]||null,D.G.mrev[2]||null,D.G.mrev[3]||null,null,null,null,null,null,null,null,null,null];
+  const total26=d26.filter(Boolean).reduce((s,v)=>s+v,0);
+  const won26=D.G.total_won;
+  document.getElementById('hist-2026-total').textContent=f(total26);
+  document.getElementById('hist-2026-sub').textContent=`${won26} deals · ano em curso`;
+  document.getElementById('hist-total-2026').textContent=f(total26)+' *';
+  new Chart(document.getElementById('cHistLinha'),{type:'line',data:{labels:meses,datasets:[{label:'2024',data:d24,borderColor:'rgba(156,163,175,1)',backgroundColor:'rgba(156,163,175,.08)',borderWidth:2.5,pointRadius:5,tension:0.3,fill:false},{label:'2025',data:d25,borderColor:'rgba(64,196,255,1)',backgroundColor:'rgba(64,196,255,.08)',borderWidth:2.5,pointRadius:5,tension:0.3,fill:false},{label:'2026 (ao vivo)',data:d26,borderColor:'rgba(0,230,118,1)',backgroundColor:'rgba(0,230,118,.12)',borderWidth:3,pointRadius:6,tension:0.3,fill:false,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#9ab8a4',font:{family:'Barlow Condensed',size:13},padding:20}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: R$ ${Math.round(ctx.parsed.y||0).toLocaleString('pt-BR')}`}}},scales:{x:{ticks:{color:'#9ab8a4'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#9ab8a4',callback:v=>'R$ '+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,.04)'}}}}});
+  const f2=n=>n?'R$ '+Math.round(n).toLocaleString('pt-BR'):'—';
+  const varPct=(a,b)=>{if(!a||!b)return'<span style="color:var(--text3)">—</span>';const p=((b-a)/a*100).toFixed(1);const cor=p>=0?'var(--green)':'var(--red)';return`<span style="color:${cor}">${p>=0?'+':''}${p}%</span>`;};
+  const tbl=document.getElementById('tb-hist-mensal'); tbl.innerHTML='';
+  meses.forEach((m,i)=>{tbl.innerHTML+=`<tr><td><strong>${m}</strong></td><td class="num" style="text-align:right;color:#9ca3af">${f2(d24[i])}</td><td class="num" style="text-align:right;color:var(--blue)">${f2(d25[i])}</td><td class="num" style="text-align:right;color:${d26[i]?'var(--green)':'var(--text3)'}">${f2(d26[i])}</td><td class="num" style="text-align:right">${varPct(d24[i],d25[i])}</td><td class="num" style="text-align:right">${d26[i]?varPct(d25[i],d26[i]):'<span style="color:var(--text3)">—</span>'}</td></tr>`;});
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  ABA PORTE
+// ─────────────────────────────────────────────────────────────────────
+let pInit=false;
+function initPorte(){
+  if(pInit)return; pInit=true;
+  // Classificação LQ/SQ por deal de cada seller usando deals em aberto
+  // Para simplificar, usamos os totais mensais diretamente dos dados
+  const mrev=D.G.mrev;
+  const meses=[{m:'Janeiro',v:mrev[1]||0},{m:'Fevereiro',v:mrev[2]||0},{m:'Março',v:mrev[3]||0}];
+  const total=meses.reduce((s,m)=>s+m.v,0);
+  document.getElementById('porte-kpis').innerHTML=
+    `<div class="card"><div class="card-title">Total Vendas 2026</div><div class="card-value green">${f(total)}</div><div class="card-sub">${D.G.total_won} deals · Jan–${meses.filter(m=>m.v>0).length===1?'Jan':meses.filter(m=>m.v>0).length===2?'Fev':'Mar'}</div></div>`+
+    `<div class="card" style="border-color:rgba(245,158,11,.3)"><div class="card-title">LQ — Grandes Geradores</div><div class="card-value gold">Ver CRM</div><div class="card-sub">Deals ≥ R$ 5.000 · calculados via API</div></div>`+
+    `<div class="card" style="border-color:rgba(59,130,246,.3)"><div class="card-title">SQ — Pequenos Geradores</div><div class="card-value" style="color:var(--blue)">Ver CRM</div><div class="card-sub">Deals &lt; R$ 5.000 · calculados via API</div></div>`+
+    `<div class="card"><div class="card-title">Ticket Médio Geral</div><div class="card-value gold">${f(D.G.ticket_medio)}</div><div class="card-sub">Por deal fechado em 2026</div></div>`;
+  new Chart(document.getElementById('cPorteMes'),{type:'bar',data:{labels:meses.map(m=>m.m),datasets:[{label:'Receita Total',data:meses.map(m=>m.v),backgroundColor:'rgba(34,197,94,.7)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9ab8a4'}}},scales:{x:{ticks:{color:'#9ab8a4'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#9ab8a4',callback:v=>'R$'+(v/1000).toFixed(0)+'K'},grid:{color:'rgba(255,255,255,.04)'}}}}});
+  new Chart(document.getElementById('cPorteDough'),{type:'doughnut',data:{labels:meses.map(m=>m.m),datasets:[{data:meses.map(m=>m.v),backgroundColor:['rgba(34,197,94,.8)','rgba(59,130,246,.8)','rgba(245,158,11,.8)'],borderColor:'#04100a',borderWidth:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#9ab8a4',font:{family:'Barlow Condensed'},padding:16}}}}});
+  const tbl=document.getElementById('porte-tabela'); tbl.innerHTML='';
+  meses.forEach(m=>{tbl.innerHTML+=`<tr><td><strong>${m.m}</strong></td><td class="num" style="text-align:right;color:var(--gold)">—</td><td class="num" style="text-align:right">—</td><td class="num" style="text-align:right">—</td><td class="num" style="text-align:right;color:var(--blue)">—</td><td class="num" style="text-align:right">—</td><td class="num" style="text-align:right">—</td><td class="num" style="text-align:right;color:var(--green)">${f(m.v)}</td></tr>`;});
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  CARGA DE DADOS — busca /api/ploomes e popula tudo
+// ─────────────────────────────────────────────────────────────────────
+async function loadDashboard(){
+  const btn=document.getElementById('btn-refresh');
+  const overlay=document.getElementById('loading-overlay');
+  const msg=document.getElementById('loader-msg');
+  if(btn)btn.disabled=true;
+  overlay.classList.remove('hidden');
+
+  // Reset de estados para permitir re-renderização
+  cCharts={};sInit=false;sCharts={};oInit=false;oCharts={};hInit=false;pInit=false;
+
+  try {
+    msg.textContent='Buscando oportunidades ganhas...';
+    const res=await fetch('/api/ploomes');
+    msg.textContent='Processando dados...';
+    if(!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+
+    // Popula estado global
+    D.sellers = data.sellers;
+    D.G       = data.G;
+    D.mbs     = data.mbs;
+    MBS_ORIG[1]= data.mbs[1]||[];
+    MBS_ORIG[2]= data.mbs[2]||[];
+    MBS_ORIG[3]= data.mbs[3]||[];
+    OR.anual  = data.OR.anual;
+    OR.marco  = data.OR.marco;
+
+    // Popula filtro de responsáveis dinamicamente
+    const sel=document.getElementById('flt-resp');
+    sel.innerHTML='<option value="ALL">Todos os Consultores</option>';
+    D.sellers.forEach(s=>{ sel.innerHTML+=`<option value="${s.name}">${s.name}</option>`; });
+
+    // Atualiza header
+    if(data.today){
+      document.getElementById('header-date').textContent='📅 '+data.today;
+      document.getElementById('header-sub').textContent='CRM Ploomes · Atualizado automaticamente';
+    }
+
+    msg.textContent='Renderizando dashboard...';
+
+    // Inicializa abas
+    renderConsolidado(D.G, D.sellers);
+    initRanking();
+    initFunil();
+    initGestor();
+    selectMes(1);
+
+    // Esconde overlay
+    setTimeout(()=>{ overlay.classList.add('hidden'); },400);
+
+  } catch(e){
+    msg.textContent='❌ Erro ao carregar: '+e.message;
+    console.error('[Dashboard]',e);
+  } finally {
+    if(btn)btn.disabled=false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  INICIAR
+// ─────────────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
+</html>
