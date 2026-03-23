@@ -2,7 +2,7 @@
 //  Ploomes API Integration
 // ─────────────────────────────────────────────────────────────────────
 
-const BASE = 'https://api2.ploomes.com';
+const BASE = 'https://api2-s01-public.ploomes.com';
 const ANO  = 2026;
 
 // ── Configuração de Consultores ──────────────────────────────────────
