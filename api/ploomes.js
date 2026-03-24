@@ -21,7 +21,7 @@ const CAMPO_ORIGEM  = 'Origem';
 
 async function ploomesFetch(path, key) {
   let all = [], skip = 0;
-  const top = 200;
+  const top = 100;
   while (true) {
     const sep = path.includes('?') ? '&' : '?';
     const url = `${BASE}${path}${sep}$top=${top}&$skip=${skip}`;
