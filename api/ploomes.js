@@ -21,13 +21,31 @@ const CAMPO_ORIGEM  = 'Origem';
 
 async function ploomesFetch(path, key) {
   let all = [], skip = 0;
-  const top = 100;
+  const top = 50;
+
   while (true) {
     const sep = path.includes('?') ? '&' : '?';
     const url = `${BASE}${path}${sep}$top=${top}&$skip=${skip}`;
-    const r = await fetch(url, { headers: { 'User-Key': key, 'Content-Type': 'application/json' } });
-    if (!r.ok) { const txt = await r.text().catch(()=>''); throw new Error(`Ploomes ${r.status}: ${txt.slice(0,300)}`); }
-    const json = await r.json();
+
+    // Aguarda 800ms entre cada página para não exceder o rate limit
+    if (skip > 0) await new Promise(r => setTimeout(r, 800));
+
+    let r;
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      r = await fetch(url, {
+        headers: { 'User-Key': key, 'Content-Type': 'application/json' }
+      });
+      if (r.status !== 429) break;
+      // Se 429, espera 3 segundos e tenta de novo
+      await new Promise(r => setTimeout(r, 3000));
+    }
+
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      throw new Error(`Ploomes ${r.status}: ${txt.slice(0, 300)}`);
+    }
+
+    const json  = await r.json();
     const items = json.value || [];
     all = [...all, ...items];
     if (items.length < top) break;
