@@ -168,8 +168,8 @@ const mrev={1:sellers.reduce((a,s)=>a+s.jan,0),2:sellers.reduce((a,s)=>a+s.feb,0
 const mwon={},mlost={},mconv={};
 [1,2,3].forEach(m=>{
   const wK=m===1?'janW':m===2?'febW':'marW',lK=m===1?'janL':m===2?'febL':'marL';
-mwon[m]=sellers.reduce((a,s)=>a+((sd[s.name]&&sd[s.name][wK])||0),0);
-mlost[m]=sellers.reduce((a,s)=>a+((sd[s.name]&&sd[s.name][lK])||0),0);
+mwon[m]=sellers.reduce((a,s)=>a+(sd[s.name]?.[wK]||0),0);
+mlost[m]=sellers.reduce((a,s)=>a+(sd[s.name]?.[lK]||0),0);
   mconv[m]=mwon[m]+mlost[m]>0?Math.round(mwon[m]/(mwon[m]+mlost[m])*1000)/10:0;
 });
 
