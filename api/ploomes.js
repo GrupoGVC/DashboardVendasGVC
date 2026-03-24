@@ -81,15 +81,13 @@ module.exports = async function handler(req, res) {
   if (!key) return res.status(500).json({ error: 'Variável PLOOMES_KEY não configurada.' });
 
   try {
-   // Faz apenas UMA chamada para buscar os negócios
-const response = await ploomesFetch('/Deals', key);
-const allDeals = response.value || [];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Separa os dados aqui dentro do servidor, sem incomodar a API do Ploomes
-const wonDeals = { value: allDeals.filter(d => d.StatusId === 2) };
-const lostDeals = { value: allDeals.filter(d => d.StatusId === 3) };
-const openDeals = { value: allDeals.filter(d => d.StatusId === 1) };
-
+const wonDeals  = await ploomesFetch(`/Deals?$filter=StatusId eq 2`, key);
+await sleep(1000);
+const lostDeals = await ploomesFetch(`/Deals?$filter=StatusId eq 3`, key);
+await sleep(1000);
+const openDeals = await ploomesFetch(`/Deals?$filter=StatusId eq 1`, key);
 
     const sd = {}, origMap = {};
 
