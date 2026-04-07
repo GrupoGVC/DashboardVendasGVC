@@ -174,11 +174,11 @@
       "Status eq 1 or (CloseDate ge " + dataFiltro + ")"
     );
 
+    // Simplified params - no $select to avoid encoding issues with the proxy
     var params = [
-      '$select=' + encodeURIComponent(SELECT_FIELDS),
       '$filter=' + filter,
       '$top=500',
-      '$expand=' + encodeURIComponent('Stage,User,Company,Contact,Proposal,OtherProperties')
+      '$expand=Stage,User,Company,Contact,Proposal,OtherProperties'
     ].join('&');
 
     // No GitHub Pages usa o proxy Supabase (evita CORS e esconde a chave)
