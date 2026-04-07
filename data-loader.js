@@ -178,7 +178,7 @@
     var params = [
       '$filter=' + filter,
       '$top=500',
-      '$expand=Stage,User,Company,Contact,Proposal,OtherProperties'
+      '$expand=Stage%2CUser%2CCompany%2CContact%2CProposal%2COtherProperties'
     ].join('&');
 
     // No GitHub Pages usa o proxy Supabase (evita CORS e esconde a chave)
