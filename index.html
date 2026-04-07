@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Dashboard de Vendas GVC — Grupo GVC</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -4887,12 +4888,12 @@ function refreshEvolInsightCards() {
     '<div class="card" style="padding:18px;border-left:3px solid var(--green)">'
    +'<div style="font-family:Montserrat;font-size:.65em;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:8px">Melhor Mês Histórico</div>'
    +'<div style="font-family:Montserrat;font-size:1.4em;color:var(--text)">'+bestLabel+'</div>'
-   +'<div style="font-family:'JetBrains Mono';font-size:.85em;color:var(--gold)">'+f(bestVal)+'</div>'
+   +'<div style="font-family:JetBrains Mono;font-size:.85em;color:var(--gold)">'+f(bestVal)+'</div>'
    +'</div>'
    +'<div class="card" style="padding:18px;border-left:3px solid var(--gold)">'
    +'<div style="font-family:Montserrat;font-size:.65em;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">Crescimento 2025 vs 2024</div>'
    +'<div style="font-family:Montserrat;font-size:1.4em;color:var(--text)">'+(growthPct>=0?'+':'')+growthPct+'%</div>'
-   +'<div style="font-family:'JetBrains Mono';font-size:.85em;color:var(--gold)">'+(growthAbs>=0?'+':'')+f(growthAbs)+'</div>'
+   +'<div style="font-family:JetBrains Mono;font-size:.85em;color:var(--gold)">'+(growthAbs>=0?'+':'')+f(growthAbs)+'</div>'
    +'</div>'
    +'<div class="card" style="padding:18px;border-left:3px solid var(--blue)">'
    +'<div style="font-family:Montserrat;font-size:.65em;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:8px">Projeção 2026</div>'
@@ -4914,12 +4915,12 @@ function refreshTvTfoot(rows) {
   var tickAno = totWonAno>0 ? Math.round(totRevAno/totWonAno) : 0;
   var tfAno = document.getElementById('tv-tfoot-ano');
   if(tfAno) tfAno.innerHTML = '<td colspan="2" style="padding:10px 12px;font-family:Montserrat;font-size:13px;letter-spacing:1px;text-transform:uppercase;">TOTAL 2026</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--green);">'+f(totRevAno)+'</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--text3);">100%</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';">'+totWonAno+'</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--red);">'+totLostAno+'</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--gold);">'+convAno+'%</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--gold);">'+f(tickAno)+'</td>';
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--green);">'+f(totRevAno)+'</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--text3);">100%</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;">'+totWonAno+'</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--red);">'+totLostAno+'</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--gold);">'+convAno+'%</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--gold);">'+f(tickAno)+'</td>';
   // Monthly
   var gMes = rows.filter(function(r){return r.sit==='Ganha'&&r.mes===MES_CUR;});
   var lMes = rows.filter(function(r){return r.sit==='Perdida'&&r.mes===MES_CUR;});
@@ -4929,13 +4930,13 @@ function refreshTvTfoot(rows) {
   var tickMes = totWonMes>0 ? Math.round(totRevMes/totWonMes) : 0;
   var tfMes = document.getElementById('tv-tfoot-mes');
   if(tfMes) tfMes.innerHTML = '<td colspan="2" style="padding:10px 12px;font-family:Montserrat;font-size:13px;letter-spacing:1px;text-transform:uppercase;">TOTAL '+nm.toUpperCase()+'</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--gold);">'+f(totRevMes)+'</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--text3);">100%</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';">'+totWonMes+'</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--red);">'+totLostMes+'</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--gold);">'+convMes+'%</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--gold);">'+f(totRevMes)+'</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--text3);">100%</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;">'+totWonMes+'</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--red);">'+totLostMes+'</td>'
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--gold);">'+convMes+'%</td>'
     +'<td style="padding:10px 12px;">—</td>'
-    +'<td style="padding:10px 12px;font-family:'JetBrains Mono';color:var(--gold);">'+f(tickMes)+'</td>';
+    +'<td style="padding:10px 12px;font-family:JetBrains Mono;color:var(--gold);">'+f(tickMes)+'</td>';
 }
 
 // ── Hook: patch refreshAll to also call dynamic functions ──
