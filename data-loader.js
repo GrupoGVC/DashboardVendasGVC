@@ -175,10 +175,11 @@
     );
 
     // Simplified params - no $select to avoid encoding issues with the proxy
+    // Encode $ as %24 so Supabase routing doesn't misinterpret OData params
     var params = [
-      '$filter=' + filter,
-      '$top=500',
-      '$expand=Stage%2CUser%2CCompany%2CContact%2CProposal%2COtherProperties'
+      '%24filter=' + filter,
+      '%24top=500',
+      '%24expand=Stage%2CUser%2CCompany%2CContact%2CProposal%2COtherProperties'
     ].join('&');
 
     // No GitHub Pages usa o proxy Supabase (evita CORS e esconde a chave)
