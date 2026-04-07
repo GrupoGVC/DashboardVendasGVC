@@ -178,7 +178,7 @@
       '$select=' + encodeURIComponent(SELECT_FIELDS),
       '$filter=' + filter,
       '$top=500',
-      '$expand=' + encodeURIComponent('Stage,User,Company,Contact,Proposal,OtherProperties($select=FieldId,TextValue,IntegerValue,DecimalValue,SelectedOptions,ObjectValueName)')
+      '$expand=Stage,User,Company,Contact,Proposal,OtherProperties'
     ].join('&');
 
     // No GitHub Pages usa o proxy Supabase (evita CORS e esconde a chave)
