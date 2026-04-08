@@ -6,7 +6,7 @@
  */
 
 // ── Autenticação Ploomes ────────────────────────────────────────────────
-window.PLOOMES_USER_KEY = '480EF01B900976FE403FE780BFAD96489713C26EEE4619D68039480202851E2AC92E3BCDBD02EAD208D62E808C73CB34A94AEABB63002379AF00336BCC1D35A4';
+window.PLOOMES_USER_KEY = 'SUA_USER_KEY_AQUI';
 // Onde encontrar: Ploomes > avatar > Configurações de Conta > API
 
 // ── Ano de início dos dados ─────────────────────────────────────────────

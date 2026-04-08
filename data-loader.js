@@ -167,29 +167,16 @@
   var SUPABASE_PROXY = 'https://lqbmjmqrhcokimdtekyc.supabase.co/functions/v1/ploomes-proxy';
 
   function buildUrl() {
-    var anoInicio  = (window.PLOOMES_ANO_INICIO || 2026);
-    var dataFiltro = anoInicio + '-01-01T00:00:00';
+    // URL mais simples possível - sem $filter para evitar problemas de encoding
+    // Filtragem por ano é feita no JavaScript após receber os dados
+    var params = '%24top=2000&%24expand=Stage%2CUser%2CCompany%2CContact%2CProposal%2COtherProperties';
 
-    var filter = encodeURIComponent(
-      "Status eq 1 or (CloseDate ge " + dataFiltro + ")"
-    );
-
-    // Simplified params - no $select to avoid encoding issues with the proxy
-    // Encode $ as %24 so Supabase routing doesn't misinterpret OData params
-    var params = [
-      '%24filter=' + filter,
-      '%24top=500',
-      '%24expand=Stage%2CUser%2CCompany%2CContact%2CProposal%2COtherProperties'
-    ].join('&');
-
-    // No GitHub Pages usa o proxy Supabase (evita CORS e esconde a chave)
     if (isGitHubPages()) {
       return SUPABASE_PROXY + '/Deals?' + params;
     }
-
-    // Em localhost, acessa a API diretamente
     return 'https://api2.ploomes.com/Deals?' + params;
   }
+
 
   // ── Mostra estado de carregamento ───────────────────────────────────────
   function setLoadingState(msg, isError) {
