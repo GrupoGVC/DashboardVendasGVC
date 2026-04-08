@@ -1,3 +1,4 @@
+// v2.1.0 — 202604081524
 /**
  * data-loader.js — Integração Ploomes API → Dashboard GVC
  * Usa proxy Supabase quando no GitHub Pages (evita CORS)
