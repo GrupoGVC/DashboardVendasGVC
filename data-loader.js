@@ -19,9 +19,11 @@
 
   // Monta a URL do Ploomes (sempre a mesma, independente do proxy)
   function buildPloomesUrl() {
+    // Mesma URL que ploomes-vendas (funciona) + OtherProperties para campos customizados
     return PLOOMES_BASE + '/Deals'
       + '?$top=2000'
-      + '&$expand=Stage,User,Company,Contact,Proposal,OtherProperties';
+      + '&$expand=OtherProperties'
+      + '&$orderby=FinishDate%20desc';
   }
 
   // Monta URL de chamada — no GitHub Pages, passa a URL do Ploomes como parâmetro
@@ -94,16 +96,17 @@
 
         var empresa = getProp(deal, CUSTOM_FIELDS.empresa_vendedora)
                    || getProp(deal, CUSTOM_FIELDS.empresa_fallback)
-                   || (deal.Company ? deal.Company.Name : 'N/D');
+                   || 'N/D';
         var produto = getProp(deal, CUSTOM_FIELDS.produto)    || 'N/D';
         var tv      = getProp(deal, CUSTOM_FIELDS.tipo_venda) || produto;
         var orig    = getProp(deal, CUSTOM_FIELDS.origem)     || 'N/D';
 
-        var resp    = deal.User    ? deal.User.Name    : 'N/D';
-        var cliente = deal.Company ? deal.Company.Name : (deal.Contact ? deal.Contact.Name : 'N/D');
-        var val     = deal.Amount  || 0;
-        var prop    = (deal.Proposal && deal.Proposal.Value) ? deal.Proposal.Value : val;
-        var stage   = deal.Stage   ? deal.Stage.Name  : 'N/D';
+        // Sem $expand de User/Company/Stage — usa campos diretos disponíveis
+        var resp    = deal.PersonName  || deal.ContactName || 'N/D';
+        var cliente = deal.ContactName || deal.PersonName  || 'N/D';
+        var val     = deal.Amount      || 0;
+        var prop    = deal.StartAmount || val;
+        var stage   = 'N/D'; // Stage.Name indisponível sem $expand=Stage
         var motivo  = deal.LossReasonSummary || 'nan';
 
         return {
