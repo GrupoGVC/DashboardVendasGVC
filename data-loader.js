@@ -1,186 +1,123 @@
 /**
  * data-loader.js — Integração Ploomes API → Dashboard GVC
- * 
- * Responsabilidade: buscar deals do Ploomes, normalizar para o
- * formato RAW_DATA esperado pelo dashboard, e acionar o refreshAll().
- *
- * Como usar:
- *   1. Defina sua USER_KEY do Ploomes em config.js
- *   2. Inclua config.js e data-loader.js no index.html ANTES do bloco de dados
- *   3. Remova o bloco RAW_DATA hardcoded do HTML
- *   4. O loader preenche RAW_DATA automaticamente ao carregar a página
- *
- * Endpoint: GET https://api2.ploomes.com/Deals
- * Docs: https://developers.ploomes.com
+ * Usa proxy Supabase quando no GitHub Pages (evita CORS)
  */
-
 (function () {
   'use strict';
 
-  // ── Campos a solicitar à API Ploomes (reduz payload) ──────────────────
-  var SELECT_FIELDS = [
-    'Id',
-    'Title',
-    'Value',                    // Valor da última venda (RAW_DATA.val)
-    'Proposal/Value',           // Valor da proposta (RAW_DATA.prop)
-    'CloseDate',                // Data de fechamento
-    'CreateDate',               // Data de criação (para calcular dias em aberto)
-    'Stage/Name',               // Etapa do funil
-    'Status',                   // 1=Em aberto, 2=Ganha, 3=Perdida
-    'User/Name',                // Responsável (RAW_DATA.resp)
-    'Company/Name',             // Cliente (RAW_DATA.cliente)
-    'Contact/Name',
-    'LostReasonSummary',        // Motivo de não conversão
-    'Tags',                     // Origem (via campo customizado ou tag)
-    'OtherProperties'           // Campos customizados: empresa vendedora, produto, tipo venda, origem
-  ].join(',');
+  var SUPABASE_PROXY = 'https://lqbmjmqrhcokimdtekyc.supabase.co/functions/v1/ploomes-proxy';
+  var PLOOMES_BASE   = 'https://api2.ploomes.com';
 
-  // ── IDs dos campos customizados — AJUSTE CONFORME SEU PLOOMES ──────────
-  // Para encontrar: Admin > Entidades > Negócios > Campos
-  var CUSTOM_FIELDS = window.PLOOMES_CUSTOM_FIELDS || {
-    empresa_vendedora : null,   // Ex: 123456  → campo "Empresa Vendedora"
-    produto           : null,   // Ex: 123457  → campo "Produto" (RSS/Gerenciamento/Consultoria)
-    tipo_venda        : null,   // Ex: 123458  → campo "Tipo de Venda"
-    origem            : null,   // Ex: 123459  → campo "Origem do Lead"
-    mes_venda         : null,   // Ex: 123460  → campo numérico "Mês" (se existir)
-  };
+  var CUSTOM_FIELDS = window.PLOOMES_CUSTOM_FIELDS || {};
 
-  // ── Status map ──────────────────────────────────────────────────────────
   var STATUS_MAP = { 1: 'Em aberto', 2: 'Ganha', 3: 'Perdida' };
 
-  // ── Busca paginada da API ───────────────────────────────────────────────
-  function fetchPage(url, allDeals, callback) {
-    // No proxy (GitHub Pages), a User-Key fica no servidor Supabase
-    // Em localhost, envia diretamente no header
-    var headers = { 'Content-Type': 'application/json' };
-    if (!isGitHubPages() && window.PLOOMES_USER_KEY) {
-      headers['User-Key'] = window.PLOOMES_USER_KEY;
-    }
-
-    fetch(url, { headers: headers })
-    .then(function(res) {
-      if (!res.ok) throw new Error('Ploomes API error: ' + res.status + ' ' + res.statusText);
-      return res.json();
-    })
-    .then(function(data) {
-      var page = data.value || [];
-      allDeals = allDeals.concat(page);
-
-      // Paginação: Ploomes usa @odata.nextLink
-      if (data['@odata.nextLink']) {
-        fetchPage(data['@odata.nextLink'], allDeals, callback);
-      } else {
-        callback(null, allDeals);
-      }
-    })
-    .catch(function(err) {
-      callback(err, allDeals);
-    });
-  }
-
-  // ── Normaliza um deal Ploomes → formato RAW_DATA ────────────────────────
-  function normalizeDeals(deals) {
-    var hoje = new Date();
-
-    return deals.map(function(deal) {
-      var status = STATUS_MAP[deal.Status] || 'Em aberto';
-
-      // Data de fechamento (para deals ganhos/perdidos)
-      var closeDate = deal.CloseDate ? new Date(deal.CloseDate) : null;
-      var createDate = deal.CreateDate ? new Date(deal.CreateDate) : null;
-
-      // Mês (1-12) baseado na data de fechamento para ganhos/perdidos
-      var mes = 0;
-      if (closeDate && (status === 'Ganha' || status === 'Perdida')) {
-        mes = closeDate.getMonth() + 1;
-      }
-
-      // Dias em aberto / idade do deal
-      var refDate = closeDate || hoje;
-      var dias = createDate ? Math.round((refDate - createDate) / 86400000) : 0;
-
-      // Alerta por dias
-      var alerta = dias > 90 ? 'CRITICO' : dias > 40 ? 'ATENCAO' : 'OK';
-
-      // Campos customizados — extrai de OtherProperties
-      function getProp(fieldId) {
-        if (!fieldId || !deal.OtherProperties) return 'N/D';
-        var prop = deal.OtherProperties.find(function(p) { return p.FieldId === fieldId; });
-        if (!prop) return 'N/D';
-        return prop.SelectedOptions
-          ? (prop.SelectedOptions[0] ? prop.SelectedOptions[0].Title : 'N/D')
-          : (prop.TextValue || prop.IntegerValue || prop.DecimalValue || 'N/D');
-      }
-
-      var empresa  = getProp(CUSTOM_FIELDS.empresa_vendedora) || getProp(CUSTOM_FIELDS.empresa_fallback) || 'N/D';
-      var produto  = getProp(CUSTOM_FIELDS.produto)    || 'N/D';
-      var tv       = getProp(CUSTOM_FIELDS.tipo_venda) || produto;
-      var orig     = getProp(CUSTOM_FIELDS.origem)     || 'N/D';
-
-      // Responsável
-      var resp = (deal.User && deal.User.Name) ? deal.User.Name : 'N/D';
-
-      // Cliente
-      var cliente = (deal.Company && deal.Company.Name)
-        ? deal.Company.Name
-        : (deal.Contact && deal.Contact.Name ? deal.Contact.Name : 'N/D');
-
-      // Valores
-      var val  = deal.Value || 0;
-      var prop = (deal.Proposal && deal.Proposal.Value) ? deal.Proposal.Value : val;
-
-      // Etapa do funil
-      var stage = (deal.Stage && deal.Stage.Name) ? deal.Stage.Name : 'N/D';
-
-      // Motivo de perda
-      var motivo = deal.LostReasonSummary || 'nan';
-
-      // Data de fechamento para header
-      var dataFim = deal.CloseDate || null;
-
-      return {
-        resp    : resp,
-        emp     : empresa,
-        sit     : status,
-        mes     : mes,
-        val     : Math.round(val * 100) / 100,
-        prop    : Math.round(prop * 100) / 100,
-        prod    : produto,
-        orig    : orig,
-        tv      : tv,
-        stage   : stage,
-        motivo  : motivo,
-        dias    : dias,
-        cliente : cliente,
-        alerta  : alerta,
-        dataFim : dataFim
-      };
-    });
-  }
-
-  // ── Detecta se está rodando em GitHub Pages (precisa de proxy) ──────────
   function isGitHubPages() {
     return window.location.hostname.indexOf('github.io') >= 0;
   }
 
-  // ── URL base: proxy Supabase no GitHub Pages, direto em localhost ────────
-  var SUPABASE_PROXY = 'https://lqbmjmqrhcokimdtekyc.supabase.co/functions/v1/ploomes-proxy';
-
-  function buildUrl() {
-    // URL mais simples possível - sem $filter para evitar problemas de encoding
-    // Filtragem por ano é feita no JavaScript após receber os dados
-    var params = '%24top=2000&%24expand=Stage%2CUser%2CCompany%2CContact%2CProposal%2COtherProperties';
-
-    if (isGitHubPages()) {
-      return SUPABASE_PROXY + '/Deals?' + params;
-    }
-    return 'https://api2.ploomes.com/Deals?' + params;
+  // Monta a URL do Ploomes (sempre a mesma, independente do proxy)
+  function buildPloomesUrl() {
+    return PLOOMES_BASE + '/Deals'
+      + '?$top=2000'
+      + '&$expand=Stage,User,Company,Contact,Proposal,OtherProperties';
   }
 
+  // Monta URL de chamada — no GitHub Pages, passa a URL do Ploomes como parâmetro
+  function buildUrl() {
+    var ploomesUrl = buildPloomesUrl();
+    if (isGitHubPages()) {
+      // Passa URL inteira como parâmetro ?url= — evita que Supabase interprete $expand, vírgulas etc.
+      return SUPABASE_PROXY + '?url=' + encodeURIComponent(ploomesUrl);
+    }
+    return ploomesUrl;
+  }
 
-  // ── Mostra estado de carregamento ───────────────────────────────────────
+  function fetchPage(url, allDeals, callback) {
+    var headers = { 'Content-Type': 'application/json' };
+    if (!isGitHubPages() && window.PLOOMES_USER_KEY) {
+      headers['User-Key'] = window.PLOOMES_USER_KEY;
+    }
+    fetch(url, { headers: headers })
+      .then(function(res) {
+        if (!res.ok) throw new Error('Ploomes API error: ' + res.status + ' ' + res.statusText);
+        return res.json();
+      })
+      .then(function(data) {
+        var page = data.value || [];
+        allDeals = allDeals.concat(page);
+        if (data['@odata.nextLink']) {
+          // Para nextLink, também passa pelo proxy
+          var next = data['@odata.nextLink'];
+          if (isGitHubPages()) {
+            next = SUPABASE_PROXY + '?url=' + encodeURIComponent(next);
+          }
+          fetchPage(next, allDeals, callback);
+        } else {
+          callback(null, allDeals);
+        }
+      })
+      .catch(function(err) { callback(err, allDeals); });
+  }
+
+  function getProp(deal, fieldId) {
+    if (!fieldId || !deal.OtherProperties) return 'N/D';
+    var prop = deal.OtherProperties.filter(function(p){ return p.FieldId === fieldId; })[0];
+    if (!prop) return 'N/D';
+    if (prop.ObjectValueName) return prop.ObjectValueName;
+    return prop.StringValue || prop.BigStringValue || prop.TextValue || 'N/D';
+  }
+
+  function normalizeDeals(deals) {
+    var hoje = new Date();
+    var anoInicio = window.PLOOMES_ANO_INICIO || 2026;
+
+    return deals
+      .filter(function(deal) {
+        // Filtra: Em aberto OU fechado a partir do ano configurado
+        if (deal.StatusId === 1) return true;
+        var closeDate = deal.FinishDate ? new Date(deal.FinishDate) : null;
+        return closeDate && closeDate.getFullYear() >= anoInicio;
+      })
+      .map(function(deal) {
+        var status   = STATUS_MAP[deal.StatusId] || 'Em aberto';
+        var closeDate  = deal.FinishDate  ? new Date(deal.FinishDate)  : null;
+        var createDate = deal.CreateDate  ? new Date(deal.CreateDate)  : null;
+        var mes = 0;
+        if (closeDate && (status === 'Ganha' || status === 'Perdida')) {
+          mes = closeDate.getMonth() + 1;
+        }
+        var refDate = closeDate || hoje;
+        var dias = createDate ? Math.round((refDate - createDate) / 86400000) : 0;
+        var alerta = dias > 90 ? 'CRITICO' : dias > 40 ? 'ATENCAO' : 'OK';
+
+        var empresa = getProp(deal, CUSTOM_FIELDS.empresa_vendedora)
+                   || getProp(deal, CUSTOM_FIELDS.empresa_fallback)
+                   || (deal.Company ? deal.Company.Name : 'N/D');
+        var produto = getProp(deal, CUSTOM_FIELDS.produto)    || 'N/D';
+        var tv      = getProp(deal, CUSTOM_FIELDS.tipo_venda) || produto;
+        var orig    = getProp(deal, CUSTOM_FIELDS.origem)     || 'N/D';
+
+        var resp    = deal.User    ? deal.User.Name    : 'N/D';
+        var cliente = deal.Company ? deal.Company.Name : (deal.Contact ? deal.Contact.Name : 'N/D');
+        var val     = deal.Amount  || 0;
+        var prop    = (deal.Proposal && deal.Proposal.Value) ? deal.Proposal.Value : val;
+        var stage   = deal.Stage   ? deal.Stage.Name  : 'N/D';
+        var motivo  = deal.LossReasonSummary || 'nan';
+
+        return {
+          resp: resp, emp: empresa, sit: status, mes: mes,
+          val: Math.round(val * 100) / 100,
+          prop: Math.round(prop * 100) / 100,
+          prod: produto, orig: orig, tv: tv, stage: stage,
+          motivo: motivo, dias: dias, cliente: cliente,
+          alerta: alerta, dataFim: deal.FinishDate || null
+        };
+      });
+  }
+
   function setLoadingState(msg, isError) {
-    var els = ['header-data-atualizacao','loading-date-label'];
+    var els = ['header-data-atualizacao', 'loading-date-label'];
     els.forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.textContent = msg;
@@ -189,45 +126,30 @@
     if (badge) badge.textContent = isError ? '⚠️ ' + msg : '⏳ ' + msg;
   }
 
-  // ── Entry point ────────────────────────────────────────────────────────
   function loadFromPloomes() {
-    if (!window.PLOOMES_USER_KEY) {
-      console.warn('[data-loader] PLOOMES_USER_KEY não definida em config.js. Usando RAW_DATA existente.');
+    if (!window.PLOOMES_USER_KEY && !isGitHubPages()) {
+      console.warn('[data-loader] PLOOMES_USER_KEY não definida. Usando RAW_DATA existente.');
       return;
     }
-
     setLoadingState('Atualizando...', false);
-
     fetchPage(buildUrl(), [], function(err, deals) {
       if (err) {
         console.error('[data-loader] Erro ao buscar dados do Ploomes:', err);
         setLoadingState('Erro ao carregar', true);
         return;
       }
-
       console.log('[data-loader] ' + deals.length + ' deals recebidos do Ploomes');
-
-      // Substitui RAW_DATA global
       window.RAW_DATA = normalizeDeals(deals);
-
-      // Atualiza filtros de seleção
       if (typeof populateFilters === 'function') populateFilters();
-
-      // Re-renderiza todo o dashboard
       if (typeof refreshAll === 'function') refreshAll();
-
-      console.log('[data-loader] Dashboard atualizado com dados do Ploomes');
+      console.log('[data-loader] Dashboard atualizado — ' + window.RAW_DATA.length + ' deals normalizados');
     });
   }
 
-  // ── Executa quando o DOM estiver pronto ────────────────────────────────
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadFromPloomes);
   } else {
     loadFromPloomes();
   }
-
-  // Expõe para uso manual (ex: botão "Atualizar")
   window.loadFromPloomes = loadFromPloomes;
-
 })();
