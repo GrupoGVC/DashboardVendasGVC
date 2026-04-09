@@ -10,15 +10,20 @@
     return window.location.hostname.indexOf('github.io') >= 0;
   }
 
-  // No GitHub Pages usa o proxy (que já filtra e pagina server-side)
-  // Em localhost usa a API diretamente com filtro simples
+  // URL do Ploomes — sempre a mesma
+  var PLOOMES_URL = 'https://api2.ploomes.com/Deals'
+    + '?$top=2000'
+    + '&$expand=OtherProperties'
+    + '&$orderby=FinishDate%20desc'
+    + '&$select=Id,Title,Amount,StartAmount,FinishDate,CreateDate,StatusId,PersonName,ContactName,LossReasonSummary,OwnerId,StageId';
+
   function buildUrl() {
-    if (isGitHubPages()) return SUPABASE_PROXY;
-    return 'https://api2.ploomes.com/Deals'
-      + '?$top=500'
-      + '&$expand=OtherProperties'
-      + '&$select=Id,Title,Amount,StartAmount,FinishDate,CreateDate,StatusId,PersonName,ContactName,LossReasonSummary'
-      + '&$filter=StatusId eq 1 or FinishDate ge 2026-01-01T00:00:00-03:00';
+    // No GitHub Pages: passa URL como ?url= (padrão que funciona com o proxy Supabase)
+    if (isGitHubPages()) {
+      return SUPABASE_PROXY + '?url=' + encodeURIComponent(PLOOMES_URL);
+    }
+    // Em localhost: chama diretamente com a chave no header
+    return PLOOMES_URL;
   }
 
   function getProp(deal, fieldId) {
