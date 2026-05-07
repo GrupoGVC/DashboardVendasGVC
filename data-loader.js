@@ -11,11 +11,11 @@
   }
 
   // URL do Ploomes — sempre a mesma
+    // Sem $select (vírgulas quebram o proxy) — igual à v13 que funcionava
   var PLOOMES_URL = 'https://api2.ploomes.com/Deals'
-    + '?$top=2000'
-    + '&$expand=OtherProperties'
-    + '&$orderby=FinishDate%20desc'
-    + '&$select=Id,Title,Amount,StartAmount,FinishDate,CreateDate,StatusId,PersonName,ContactName,LossReasonSummary,OwnerId,StageId';
+    + '?\$top=2000'
+    + '&\$expand=OtherProperties'
+    + '&\$orderby=FinishDate%20desc';
 
   function buildUrl() {
     // No GitHub Pages: passa URL como ?url= (padrão que funciona com o proxy Supabase)
